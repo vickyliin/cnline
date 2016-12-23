@@ -1,0 +1,3 @@
+USERS_DB_PATH = "./users.db"
+SALT = "CNLINE"
+PORT = 16666
