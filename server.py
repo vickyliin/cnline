@@ -25,13 +25,13 @@ def DB_register(username, password):
                             VALUES(?, ?, ?)''', (
                                 username,
                                 sha256((password + config.HASH_SALT).encode()).hexdigest(),
-                                datetime.utcnow().isoformat('')
+                                datetime.utcnow().isoformat(' ')
                             ))
     except sqlite3.Error as e:
         print("Database update failed : ", e.args[0])
         pass
 
-def handle_requst(sock):
+def handle_request(sock):
     msg = sock.recv(4096).decode("UTF-8")
     print("receive : " + msg)
     pass
@@ -52,10 +52,10 @@ if __name__ == '__main__':
                 # accept new connections, register to epoll and add to connections dict
                 if fd == sock.fileno():
                     conn, _ = sock.accept()
-                    epoll.register(conn.fileno, select.EPOLLIN)
+                    epoll.register(conn.fileno(), select.EPOLLIN)
                     connections[conn.fileno()] = conn
                 # handle other requests
-                elif event & SELECT.EPOLLIN:
+                elif event & select.EPOLLIN:
                     conn = connections[fd]
                     try:
                         handle_request(conn)
