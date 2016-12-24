@@ -24,7 +24,7 @@ def DB_register(username, password):
             conn.execute('''INSERT INTO users(username, password, reg_time)
                             VALUES(?, ?, ?)''', (
                                 username,
-                                sha256((password + config.HASH_SALT).encode()).hexdigest(),
+                                sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
                                 datetime.utcnow().isoformat(' ')
                             ))
     except sqlite3.Error as e:
