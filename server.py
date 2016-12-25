@@ -33,24 +33,53 @@ class DBConnection:
                                     ))
         except sqlite3.Error as e:
             print("Database update failed : ", e.args[0])
+
     def fetch_user(self, username):
-        pass
+        try:
+            with self.conn:
+                self.cur = self.conn.cursor()
+                self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
+        except sqlite3.Error as e:
+            print("Database fetch failed : ", e.args[0])
+            return None
+        return self.cur.fetchone()
+
     def close(self):
         self.conn.close()
 
-def register_handler(conn):
-    conn.sock.send(b'''-----Registration-----
-                       Please enter you username:''')
-    yield
-    username = conn.msg
-    # check username
-    conn.sock.send(b'''Please enter you password:''')
-    yield
-    password = conn.msg
+def register_handler(conn, db):
+    while True:
+        conn.sock.send(b'''-----Registration-----\n
+                           Please enter you username, or /cancel to cancel :''')
+        yield
+        username = conn.msg.decode('UTF-8')
+        if username == '/cancel/':
+            return
+        r = db.fetch_user(username)
+        if r != None:
+            conn.sock.send(b"Sorry, this username is already used, please try with another.\n")
+        else:
+            break
+    while True:
+        conn.sock.send(b"Please enter you password:")
+        yield
+        password = conn.msg.decode('UTF-8')
+        
+        conn.sock.send(b"Please enter you password again:")
+        yield
+        password_2 = conn.msg.decode('UTF-8')
+
+        if password == password_2:
+            break
+        else:
+            conn.sock.send(b"Two password doesn't match!!\n")
+
     print("%s, %s" % (username, password))
+    db.register(username, password)
+    conn.sock.send(b"Success")
     conn.task = None
     
-def login_handler(conn):
+def login_handler(conn, db):
     username = conn.msg
     conn.sock.send(b'''Enter your password : ''')
     yield
@@ -60,17 +89,14 @@ def login_handler(conn):
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
-    self.task = None
+    conn.task = None
 
 REQUEST_HANDLERS = {
     0x01 : register_handler,
     0x02 : login_handler
 }
 
-def DB_register(username, password):
-    conn = sqlite.connect(config.USERS_DB_PATH)
-
-def handle_request(conn):
+def handle_request(conn, db):
     msg = conn.sock.recv(4096)
     print("handling request from : " + str(conn.sock))
     print("receive raw msg : " + str(msg))
@@ -81,8 +107,8 @@ def handle_request(conn):
     if conn.task == None:
         print("Creating new task")
         request_type = msg[0]
-        msg = msg[1:].decode("UTF-8")
-        conn.task = REQUEST_HANDLERS[request_type](conn)
+        msg = msg[1:]
+        conn.task = REQUEST_HANDLERS[request_type](conn, db)
     print("Resuming Task")
     try:
         conn.msg = msg
@@ -117,11 +143,12 @@ if __name__ == '__main__':
                     elif event & select.EPOLLIN:
                         conn = connections[fd]
                         try:
-                            handle_request(conn)
+                            handle_request(conn, db)
                         # remote socket closed
                         except socket.error as e:
                             print("connetion closed : " + str(conn.sock))
                             del connections[conn.sock.fileno()]
                             conn.sock.close()
-        except:
+        except KeyboardInterrupt:
+            sock.close()
             exit()
