@@ -19,6 +19,25 @@ class Connection:
         self.sock = sock
         self.task = None
 
+class DBConnection:
+    def __init__(self):
+        self.conn = sqlite3.connect(config.USERS_DB_PATH)
+    def register(self, username, password):
+        try:
+            with self.conn:
+                self.conn.execute('''INSERT INTO users(username, password, reg_time)
+                                     VALUES(?, ?, ?)''', (
+                                         username,
+                                         sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
+                                         datetime.utcnow().isoformat(' ')
+                                    ))
+        except sqlite3.Error as e:
+            print("Database update failed : ", e.args[0])
+    def fetch_user(self, username):
+        pass
+    def close(self):
+        self.conn.close()
+
 def register_handler(conn):
     conn.sock.send(b'''-----Registration-----
                        Please enter you username:''')
@@ -50,17 +69,6 @@ REQUEST_HANDLERS = {
 
 def DB_register(username, password):
     conn = sqlite.connect(config.USERS_DB_PATH)
-    try:
-        with conn:
-            conn.execute('''INSERT INTO users(username, password, reg_time)
-                            VALUES(?, ?, ?)''', (
-                                username,
-                                sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
-                                datetime.utcnow().isoformat(' ')
-                            ))
-    except sqlite3.Error as e:
-        print("Database update failed : ", e.args[0])
-        pass
 
 def handle_request(conn):
     msg = conn.sock.recv(4096)
@@ -85,6 +93,8 @@ def handle_request(conn):
 if __name__ == '__main__':
     # setup the server
     with socket.socket() as sock, select.epoll() as epoll:
+        # Initialize sqlite db
+        db = DBConnection()
         try:
             # bind the socket and register to epoll object
             sock.bind(("0.0.0.0", config.PORT))
@@ -113,5 +123,5 @@ if __name__ == '__main__':
                             print("connetion closed : " + str(conn.sock))
                             del connections[conn.sock.fileno()]
                             conn.sock.close()
-        except KeyboardInterrupt:
-            sock.close()
+        except:
+            exit()
