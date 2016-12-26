@@ -23,25 +23,18 @@ class DBConnection:
     def __init__(self):
         self.conn = sqlite3.connect(config.USERS_DB_PATH)
     def register(self, username, password):
-        try:
-            with self.conn:
-                self.conn.execute('''INSERT INTO users(username, password, reg_time)
-                                     VALUES(?, ?, ?)''', (
-                                         username,
-                                         sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
-                                         datetime.utcnow().isoformat(' ')
-                                    ))
-        except sqlite3.Error as e:
-            print("Database update failed : ", e.args[0])
+        with self.conn:
+            self.conn.execute('''INSERT INTO users(username, password, reg_time)
+                                 VALUES(?, ?, ?)''', (
+                                     username,
+                                     sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
+                                     datetime.utcnow().isoformat(' ')
+                                ))
 
     def fetch_user(self, username):
-        try:
-            with self.conn:
-                self.cur = self.conn.cursor()
-                self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-        except sqlite3.Error as e:
-            print("Database fetch failed : ", e.args[0])
-            return None
+        with self.conn:
+            self.cur = self.conn.cursor()
+            self.cur.execute("SELECT * FROM users WHERE username = ?", (username,))
         return self.cur.fetchone()
 
     def close(self):
@@ -49,11 +42,11 @@ class DBConnection:
 
 def register_handler(conn, db):
     while True:
-        conn.sock.send(b'''-----Registration-----\n
-                           Please enter you username, or /cancel to cancel :''')
+        conn.sock.send(b'''-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
         yield
         username = conn.msg.decode('UTF-8')
         if username == '/cancel/':
+            conn.task = None
             return
         r = db.fetch_user(username)
         if r != None:
@@ -80,11 +73,15 @@ def register_handler(conn, db):
     conn.task = None
     
 def login_handler(conn, db):
-    username = conn.msg
-    conn.sock.send(b'''Enter your password : ''')
+    username = conn.msg.decode('UTF-8')
+    # check if username exists
+    conn.sock.send(b'''Enter your password or /cancel to cancel: ''')
     yield
-    password = conn.msg
-    #check password from db
+    password = conn.msg.decode('UTF-8')
+    if password == '/cancel'
+        conn.task = None
+        return
+    # check password from db
     conn.sock.send(b"Logged in!")
     print("User %s logged in." % (username,))
     conn.login = True
