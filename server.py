@@ -42,22 +42,27 @@ class DBConnection:
 
 def register_handler(conn, db):
     while True:
-        conn.sock.send(b'''-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
+        # ask for username
+        conn.sock.send(b"-----Registration-----\n")
+        conn.sock.send(b"Please enter you username, or /cancel to cancel :")
         yield
+
         username = conn.msg.decode('UTF-8')
         if username == '/cancel/':
-            conn.task = None
-            return
-        r = db.fetch_user(username)
-        if r != None:
+            raise StopIteration
+        # check if username already in use.
+        user_inf = db.fetch_user(username)
+        if user_inf != None:
             conn.sock.send(b"Sorry, this username is already used, please try with another.\n")
         else:
             break
     while True:
+        # ask for password
         conn.sock.send(b"Please enter you password:")
         yield
         password = conn.msg.decode('UTF-8')
         
+        # confirm password
         conn.sock.send(b"Please enter you password again:")
         yield
         password_2 = conn.msg.decode('UTF-8')
@@ -69,24 +74,28 @@ def register_handler(conn, db):
 
     print("%s, %s" % (username, password))
     db.register(username, password)
-    conn.sock.send(b"Success")
-    conn.task = None
+    conn.sock.send(b"Registration success!\n")
+    raise StopIteration
     
 def login_handler(conn, db):
     username = conn.msg.decode('UTF-8')
     # check if username exists
-    conn.sock.send(b'''Enter your password or /cancel to cancel: ''')
+    user_inf = db.fetch_user(username)
+    if user_inf == None:
+        conn.sock.send(b"User not found!\n")
+        raise StopIteration
+    conn.sock.send(b"Enter your password or /cancel to cancel: ")
     yield
+
     password = conn.msg.decode('UTF-8')
     if password == '/cancel'
-        conn.task = None
-        return
+        raise StopIteration
     # check password from db
     conn.sock.send(b"Logged in!")
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
-    conn.task = None
+    raise StopIteration
 
 REQUEST_HANDLERS = {
     0x01 : register_handler,
@@ -111,6 +120,7 @@ def handle_request(conn, db):
         conn.msg = msg
         next(conn.task)
     except StopIteration:
+        conn.sock.send('> ')
         conn.task = None
 
 if __name__ == '__main__':
