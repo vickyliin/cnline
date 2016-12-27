@@ -1,3 +1,4 @@
 USERS_DB_PATH = "./users.db"
 PASSWORD_SALT = "CNLINE"
 PORT = 16666
+SERVER_IP = "0.0.0.0"
