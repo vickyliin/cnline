@@ -42,7 +42,7 @@ class DBConnection:
 
 def register_handler(conn, db):
     while True:
-        conn.sock.send(b'''-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
+        conn.sock.send(b'''\0-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
         yield
         username = conn.msg.decode('UTF-8')
         if username == '/cancel/':
@@ -50,26 +50,26 @@ def register_handler(conn, db):
             return
         r = db.fetch_user(username)
         if r != None:
-            conn.sock.send(b"Sorry, this username is already used, please try with another.\n")
+            conn.sock.send(b"\0Sorry, this username is already used, please try with another.\n")
         else:
             break
     while True:
-        conn.sock.send(b"Please enter you password:")
+        conn.sock.send(b"\0Please enter you password:")
         yield
         password = conn.msg.decode('UTF-8')
         
-        conn.sock.send(b"Please enter you password again:")
+        conn.sock.send(b"\0Please enter you password again:")
         yield
         password_2 = conn.msg.decode('UTF-8')
 
         if password == password_2:
             break
         else:
-            conn.sock.send(b"Two password doesn't match!!\n")
+            conn.sock.send(bytes(config.SERVER_CODE['req_end'])+b"Two password doesn't match!!\n")
 
     print("%s, %s" % (username, password))
     db.register(username, password)
-    conn.sock.send(b"Success")
+    conn.sock.send(bytes(config.SERVER_CODE['req_end'])+b"Success")
     conn.task = None
     
 def login_handler(conn, db):
@@ -82,7 +82,7 @@ def login_handler(conn, db):
         conn.task = None
         return
     # check password from db
-    conn.sock.send(config.SERVER_CODE['login_succeed']+b"Logged in!")
+    conn.sock.send(bytes([config.SERVER_CODE['login_succeed']])+b"Logged in!")
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
