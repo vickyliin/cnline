@@ -45,7 +45,8 @@ def register_handler(conn, db):
         conn.sock.send(b'''\0-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
         yield
         username = conn.msg.decode('UTF-8')
-        if username == '/cancel/':
+        if username == '/cancel':
+            conn.sock.send(bytes([config.SERVER_CODE['req_end']]))
             conn.task = None
             return
         r = db.fetch_user(username)
@@ -65,13 +66,13 @@ def register_handler(conn, db):
         if password == password_2:
             break
         else:
-            conn.sock.send(bytes(config.SERVER_CODE['req_end'])+b"Two password doesn't match!!\n")
+            conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b"Two password doesn't match!!\n")
 
     print("%s, %s" % (username, password))
     db.register(username, password)
-    conn.sock.send(bytes(config.SERVER_CODE['req_end'])+b"Success")
+    conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b"Success")
     conn.task = None
-    
+
 def login_handler(conn, db):
     username = conn.msg.decode('UTF-8')
     # check if username exists
@@ -79,16 +80,23 @@ def login_handler(conn, db):
     yield
     password = conn.msg.decode('UTF-8')
     if password == '/cancel':
+        conn.sock.send(bytes([config.SERVER_CODE['req_end']]))
         conn.task = None
         return
     # check password from db
-    conn.sock.send(bytes([config.SERVER_CODE['login_succeed']])+b"Logged in!")
+    
+    conn.sock.send(
+        bytes( [config.SERVER_CODE['login_succeed']] )+
+        bytes( 'Welcome %s, please enter a command.'%username, 'ASCII'))
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
     conn.task = None
 
-REQUEST_HANDLERS = {v: k for k, v in config.REQUEST_CODE.items()}
+REQUEST_HANDLERS = {
+    0x01 : register_handler,
+    0x02 : login_handler
+}
 def handle_request(conn, db):
     msg = conn.sock.recv(4096)
     print("handling request from : " + str(conn.sock))
@@ -101,11 +109,15 @@ def handle_request(conn, db):
         print("Creating new task")
         request_type = msg[0]
         msg = msg[1:]
-        conn.task = REQUEST_HANDLERS[request_type](conn, db)
+        try:
+            conn.task = REQUEST_HANDLERS[request_type](conn, db)
+        except KeyError:
+            conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b'Unestablished function.')
     print("Resuming Task")
     try:
         conn.msg = msg
-        next(conn.task)
+        if conn.task != None:
+            next(conn.task)
     except StopIteration:
         conn.task = None
 

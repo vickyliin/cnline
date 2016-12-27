@@ -8,10 +8,14 @@ REQUEST_CODE = dict(
         login = 2,
         ls = 3,
         talk = 4,
-        message = 5,
+        msg = 5,
         disconnect = 6,
-        transfer = 7, )
+        transfer = 7, 
+        logout = 8, 
+        leave = 9, )
 
 SERVER_CODE = dict(
         login_succeed = 1,
-        req_end = 2, )
+        req_end = 2,
+        talk_req_succeed = 3, 
+        logout_succeed = 4, )
