@@ -75,24 +75,20 @@ def register_handler(conn, db):
 def login_handler(conn, db):
     username = conn.msg.decode('UTF-8')
     # check if username exists
-    conn.sock.send(b'''Enter your password or /cancel to cancel: ''')
+    conn.sock.send(b'''\0Enter your password or /cancel to cancel: ''')
     yield
     password = conn.msg.decode('UTF-8')
-    if password == '/cancel'
+    if password == '/cancel':
         conn.task = None
         return
     # check password from db
-    conn.sock.send(b"Logged in!")
+    conn.sock.send(config.SERVER_CODE['login_succeed']+b"Logged in!")
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
     conn.task = None
 
-REQUEST_HANDLERS = {
-    0x01 : register_handler,
-    0x02 : login_handler
-}
-
+REQUEST_HANDLERS = {v: k for k, v in config.REQUEST_CODE.items()}
 def handle_request(conn, db):
     msg = conn.sock.recv(4096)
     print("handling request from : " + str(conn.sock))
