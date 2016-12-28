@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 import socket
 import config
-import codes
+from codes import *
 from os.path import isfile
 
 MAX_RECV_LEN = 4096
+CMDS = {
+    'start' : ['login', 'register', 'exit']
+    'login' : ['talk', 'logout', 'exit', 'ls']
+    'talk' : ['/leave', '/transfer']
+}
 
 def cmd_not_found(cmds):
     print('Unrecognized command.\nPlease enter one of the following commands:')
@@ -18,10 +23,11 @@ state_transfer_dict = dict(
         talk_req_succeed = 'talk', 
         logout_succeed = 'start', 
 )
+
 def state_handler(sock, cmd, init_state):
     # recv msg from server and send back, return the resulting state
     server_msg = sock.recv(MAX_RECV_LEN)
-    while( server_msg[0] != config.SERVER_CODE['req_end']):
+    while( server_msg[0] != REQUEST_FIN):
         print('(Server#%d)'%server_msg[0], end=' ')
         print(server_msg[1:].decode())
         for (req, state) in state_transfer_dict.items():
@@ -44,20 +50,17 @@ if __name__ == '__main__':
         state = 'start'
         while(True):
             usrcmd = input('(%s)> '%state)
+            cmds = CMDS[state]
             if state == 'start':
-                cmds = ['login', 'register', 'exit']
                 if usrcmd.startswith(cmds[0]):
                     # login
                     username = usrcmd[len(cmds[0]):].strip()
                     if username == '':
                         username = input('Username: ')
-                    sock.send(
-                        bytes([config.REQUEST_CODE['login']]) +
-                        username.encode()
-                    )
+                    sock.send(LOGIN_REQUEST + username.encode())
                 elif usrcmd.startswith(cmds[1]):
                     # register
-                    sock.send(bytes([config.REQUEST_CODE['register']]))
+                    sock.send(REGISTER_REQUEST)
                 elif usrcmd.startswith(cmds[2]):
                     # exit
                     print('Goodbye!')
@@ -66,40 +69,37 @@ if __name__ == '__main__':
                     cmd_not_found(cmds)
                     continue
                 state = state_handler(sock, usrcmd, state)
-                
 
             elif state == 'login':
-                cmds = ['talk', 'logout', 'exit', 'ls']
                 if usrcmd.startswith(cmds[0]):
                     # talk
                     guest = usrcmd[len(cmds[0]):].strip()
                     if guest == '':
                         guest = input('To: ')
-                    talk_req = bytes([config.REQUEST_CODE['talk']]) + guest.encode()
+                    talk_req = TALK_REQUEST + guest.encode()
                     sock.send(talk_req)
                 elif usrcmd.startswith(cmds[1]):
                     # logout
-                    sock.send(bytes([config.REQUEST_CODE['logout']]))
+                    sock.send(LOGOUT_REQUEST)
                 elif usrcmd.startswith(cmds[2]):
                     # exit
                     print('Goodbye!')
                     break
                 elif usrcmd.startswith(cmds[3]):
                     # list online users
-                    sock.send(bytes([config.REQUEST_CODE['ls']]))
+                    sock.send(LIST_REQUEST)
                 else:
                     cmd_not_found(cmds)
                     continue
                 state = state_handler(sock, usrcmd, state)
 
             elif state == 'talk':
-                cmds = ['/leave', '/transfer']
                 if usrcmd.startswith(cmds[0]):
                     # leave 
                     chk = input('Do you really wanna leave the talk [y/N] ? ')
                     if not chk in ['y','Y']:
                         continue
-                    sock.send(bytes([config.REQUEST_CODE['leave']]))
+                    sock.send(LEAVE_REQUEST)
 
                 elif usrcmd.startswith(cmds[1]):
                     # file transfer
@@ -111,15 +111,9 @@ if __name__ == '__main__':
                             break
                     if filename == '/cancel':
                         continue
-                    sock.send(
-                        bytes([config.REQUEST_CODE['transfer']])+
-                        filename.encode()
-                    )
+                    sock.send(TRANSFER_REQUEST + filename.encode())
                 else:
-                    sock.send(
-                        bytes([config.REQUEST_CODE['msg']])+
-                        usrsmd.encode()
-                    )
+                    sock.send(MSG_REQUEST + usrsmd.encode())
 
                 state = state_handler(sock, usrcmd, state)
                 

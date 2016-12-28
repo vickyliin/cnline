@@ -21,7 +21,7 @@ LIST_REQUEST = bytes([0x03])
 TALK_REQUEST = bytes([0x04])
 MSG_REQUEST = bytes([0x05])
 DISCON_REQUEST = bytes([0x06])
-TRANS_REQUEST = bytes([0x07])
+TRANSFER_REQUEST = bytes([0x07])
 LOGOUT_REQUEST = bytes([0x08])
 LEAVE_REQUEST = bytes([0x09])
 
