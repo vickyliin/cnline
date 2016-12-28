@@ -43,38 +43,37 @@ class DBConnection:
 def register_handler(conn, db):
     while True:
         # ask for username
-        conn.sock.send(b"-----Registration-----\n")
-        conn.sock.send(b"Please enter you username, or /cancel to cancel :")
+        conn.sock.send(b"\x00-----Registration-----\nPlease enter you username, or /cancel to cancel :")
         yield
 
         username = conn.msg.decode('UTF-8')
-        if username == '/cancel/':
+        if username == '/cancel':
             raise StopIteration
         # check if username already in use.
         user_inf = db.fetch_user(username)
         if user_inf != None:
-            conn.sock.send(b"Sorry, this username is already used, please try with another.\n")
+            conn.sock.send(b"\x00Sorry, this username is already used, please try with another.\n")
         else:
             break
     while True:
         # ask for password
-        conn.sock.send(b"Please enter you password:")
+        conn.sock.send(b"\x00Please enter you password:")
         yield
         password = conn.msg.decode('UTF-8')
         
         # confirm password
-        conn.sock.send(b"Please enter you password again:")
+        conn.sock.send(b"\x00Please enter you password again:")
         yield
         password_2 = conn.msg.decode('UTF-8')
 
         if password == password_2:
             break
         else:
-            conn.sock.send(b"Two password doesn't match!!\n")
+            conn.sock.send(b"\x00Two password doesn't match!!\n")
 
     print("%s, %s" % (username, password))
     db.register(username, password)
-    conn.sock.send(b"Registration success!\n")
+    conn.sock.send(b"\x00Registration success!\n")
     raise StopIteration
     
 def login_handler(conn, db):
@@ -120,7 +119,7 @@ def handle_request(conn, db):
         conn.msg = msg
         next(conn.task)
     except StopIteration:
-        conn.sock.send('> ')
+        conn.sock.send(b'\x02')
         conn.task = None
 
 if __name__ == '__main__':
