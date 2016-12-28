@@ -90,10 +90,12 @@ def login_handler(conn, db):
 
     password = conn.msg.decode('UTF-8')
     if password == '/cancel':
-        conn.sock.send(REQUEST_FIN + b'Request canceld.')
+        conn.sock.send(REQUEST_FIN + b'Request canceled.')
         raise StopIteration
     # check password from db
-    
+    if sha256((password + config.PASSWORD_SALT).encode()).hexdigest() != user_inf[2]:
+        conn.sock.send(REQUEST_FIN + b'Password error!')
+        raise StopIteration
     conn.sock.send(LOGIN_SUCCEED + 
         bytes( 'Welcome %s, please enter a command.'%username, 'ASCII'))
     print("User %s logged in." % (username,))
