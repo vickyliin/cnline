@@ -1,36 +1,62 @@
 #!/usr/bin/env python
-
+# This is a test server, echo each message recieved from a client.
 import socket
 import config
 from codes import *
+from time import sleep
+from threading import Thread, current_thread
 
+import codes
+code_dict = { v:k for k,v in codes.__dict__.items() \
+                if not k.startswith('__') }
+code_dict[b'\x00'] = 'DEFAULT'
+def thprint(msg, *arg, **kwarg):
+    print('%s %s' % (current_thread().name, msg), *arg, **kwarg)
+def handler(sock, print=thprint):
+    def handle():
+        peer = None
+        connsock = None
+        try:
+            connsock, _ = sock.accept()
+            t = Thread(target=handler(sock))
+            t.start()
+            peer = connsock.getpeername()[0]
+            print('IP %s connect' % peer)
+            while(True):
+                msg = connsock.recv(4096)
+                if msg == b'':
+                    print('No msg, client may leave')
+                    connsock.close()
+                    break
+                code, msg = msg[:1], msg[1:]
+                print( '%s\t%s' % ( code_dict[code] , msg.decode() ) )
+                if code == MSG_REQUEST:
+                    connsock.send( REQUEST_FIN + b'guest: ' + msg)
+                elif code+msg == b'\x00A':
+                    # polling, simulate file transfer request from remote
+                    connsock.send(TRANSFER_REQUEST + b'filename')
+                else:
+                    connsock.send( MSG_REQUEST + b'msg ' + msg )
+        except ConnectionResetError:
+            print('IP %s leave' % peer)
+        except OSError:
+            print('IP %s leave' % peer)
+        except KeyboardInterrupt:
+            sock.close()
+        finally:
+            if connsock:
+                connsock.close()
+        return
+    return handle
 if __name__ == '__main__':
     # setup the server
-    sock = socket.socket()
-    connsock = None
-    try:
-        sock.bind(('0.0.0.0', config.PORT))
-        print('PORT: %d'%config.PORT)
+    with socket.socket() as sock:
+        connsock = None
+        port = 16666
+        sock.bind(('0.0.0.0', port))
+        print('PORT: %d'%port)
         sock.listen(5)
-        connsock, _ = sock.accept()
-        while(True):
-            msg = connsock.recv(4096)
-			code, msg = msg[:1], msg[1:]
-            print( '%d %s'%(code,msg.decode()) )
-            if code == LOGIN_REQUEST:
-                connsock.send( LOGIN_SUCCEED + msg)
-            elif code == TALK_REQUEST:
-                connsock.send( TALK_SUCCEED + msg)
-            elif code == LOGOUT_REQUEST:
-                connsock.send( LOGOUT_SUCCEED + msg)
-            elif code == MSG_REQUEST:
-                connsock.send( MSG_REQUEST + msg)
-            else:
-                connsock.send(
-                    bytes([SERVER_CODE['req_end']])+ msg)
-    except KeyboardInterrupt:
-        connsock.close()
-    except ConnectionResetError:
-        pass
-    finally:
-        sock.close()
+        while True:
+            t = Thread(target=handler(sock))
+            t.start()
+            t.join()
