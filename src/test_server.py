@@ -10,8 +10,10 @@ import codes
 code_dict = { v:k for k,v in codes.__dict__.items() \
                 if not k.startswith('__') }
 code_dict[b'\x00'] = 'DEFAULT'
+
 def thprint(msg, *arg, **kwarg):
-    print('%s %s' % (current_thread().name, msg), *arg, **kwarg)
+    print('%s %s' % (current_thread().name, msg), 
+        flush=True, *arg, **kwarg)
 def handler(sock, print=thprint):
     def handle():
         peer = None
@@ -22,6 +24,7 @@ def handler(sock, print=thprint):
             t.start()
             peer = connsock.getpeername()[0]
             print('IP %s connect' % peer)
+            i,j = 0,0
             while(True):
                 msg = connsock.recv(4096)
                 if msg == b'':
@@ -31,12 +34,29 @@ def handler(sock, print=thprint):
                 code, msg = msg[:1], msg[1:]
                 print( '%s\t%s' % ( code_dict[code] , msg.decode() ) )
                 if code == MSG_REQUEST:
-                    connsock.send( REQUEST_FIN + b'guest: ' + msg)
-                elif code+msg == b'\x00A':
-                    # polling, simulate file transfer request from remote
-                    connsock.send(TRANSFER_REQUEST + b'filename')
+                    # echo
+                    connsock.send( REQUEST_FIN + b'[host]: ' + msg)
+                elif code == TRANSFER_REQUEST:
+                    # simulate the recver, toggle accept/deny
+                    i += 1
+                    if i%2:
+                        connsock.send(TRANSFER_ACCEPT + b'ip:port')
+                    else:
+                        connsock.send(TRANSFER_DENY + b'Transfer denied by guest.')
+                elif code == b'\x00':
+                    # polling, simulate
+                    # 1) file transfer request from remote
+                    # 2) msg from remote
+                    # 3) no new msg
+                    j += 1
+                    if j%10 == 0:
+                        connsock.send(TRANSFER_REQUEST + b'filename')
+                    elif j%5 == 3:
+                        connsock.send(MSG_REQUEST + b'[guest msg]')
+                    else:
+                        connsock.send(REQUEST_FIN)
                 else:
-                    connsock.send( MSG_REQUEST + b'msg ' + msg )
+                    connsock.send(REQUEST_FIN)
         except ConnectionResetError:
             print('IP %s leave' % peer)
         except OSError:
@@ -53,6 +73,7 @@ if __name__ == '__main__':
     with socket.socket() as sock:
         connsock = None
         port = 16666
+        print('Binding...')
         sock.bind(('0.0.0.0', port))
         print('PORT: %d'%port)
         sock.listen(5)

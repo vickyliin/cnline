@@ -1,16 +1,26 @@
+#!/usr/bin/env python
 import socket
 import tkinter as tk
+import tkinter.messagebox as tkbox
 from codes import *
+from threading import Thread
+from time import sleep
+
+from transfer import *
+
+# TODO the following import should be removed
+import random
 
 MAX_RECV_LEN = 4096
-
-class ChatRoom():
-    def __init__(self, host=None, quest=None):
+class Chatroom():
+    def __init__(self, fileports, host=None, guest=None):
         # init tk window
         self.host = host
         self.guest = guest
         self.root = tk.Tk()
         self.root.title(guest)
+        self.alive = False
+        self.fileports = fileports
 
         # add elements in the window
         self.chatbox = tk.Text(self.root)
@@ -20,57 +30,106 @@ class ChatRoom():
         # TODO arrange the elements
 
 
-    def start(self, sock):
+    def start(self, ssock, rsock):
+        self.ssock = ssock
+        self.rsock = rsock
+
         self.chatbox.pack()
         self.msgbar.pack()
         self.button.pack()
 
-        self.msgbar.bind('<Return>', send_msg(self, sock))
-        self.button.bind('<Button-1>', req_file(self, sock))
-        win.after(10000, poll_msg(self, sock))
-        win.mainloop()
+        self.msgbar.bind('<Return>', send_msg(self))
+        self.button.bind('<Button-1>', req_file(self))
+        self.root.protocol("WM_DELETE_WINDOW", self.close)
+        
+        self.alive = True
+        Thread(target=poll_msg(self)).start()
+        Thread(target=self.root.mainloop).run()
 
     def print(self, msg, end='\n'):
-        self.chatbox.insert(END, msg+end)
+        if type(msg) == bytes:
+            msg = msg.decode()
+        self.chatbox.insert('1.0', msg+end)
+    def close(self): 
+        chk = tkbox.askokcancel(
+            'Quit',
+            'Do you really want to leave the chatroom with %s?' % \
+                self.guest,
+        )
+        if chk:
+            self.alive = False 
+            self.ssock.send(LEAVE_REQUEST)
+            self.ssock.recv(MAX_RECV_LEN)
+            self.root.destroy()
 
-def poll_msg(chatroom, sock):
+def poll_msg(chatroom):
     def poll():
-        chatroom.chatbox.insert(END, 'Polling msg...\n')
-        server_msg = sock.recv(MAX_RECV_LEN)
-        while( server_msg[0] != SERVER_CODE['req_end']):
-            if server_msg[0] == SERVER_CODE['transfer']:
-                filename = server_msg[1:].decode()
-                simpledialog.askstring('file from %s'%sender,)
-                # TODO new thread to recv file
-
-            chatroom.print(server_msg[1:].decode())
+        sock = chatroom.rsock
+        while chatroom.alive:
+            sock.send(b'\x00')
             server_msg = sock.recv(MAX_RECV_LEN)
-        chatroom.print(server_msg[1:].decode())
+
+            if server_msg[:1] == MSG_REQUEST:
+                chatroom.print(server_msg[1:])
+
+            elif server_msg[:1] == TRANSFER_REQUEST:
+                filename = server_msg[1:].decode()
+                th_recvfile = Thread()
+                th_recvfile.run = recv_file(chatroom, filename)
+                th_recvfile.start()
+            sleep(1)
     return poll
 
-def send_msg(chatroom, sock):
+
+def send_msg(chatroom):
     def send(e):
+        sock = chatroom.ssock
         msg = chatroom.msgbar.get()
         sock.send( MSG_REQUEST + msg.encode() )
-        chatroom.msgbar.delete(0, END)
-        chatroom.print(msg)
+        try:
+            server_msg = sock.recv(MAX_RECV_LEN)
+        except socket.timeout:
+            chatroom.print('Timeout, trying to send again.')
+            server_msg = sock.recv(MAX_RECV_LEN)
+        if server_msg[0] == REQUEST_FIN[0]:
+            chatroom.print(server_msg[1:])
+            chatroom.msgbar.delete(0, tk.END)
+        else:
+            chatroom.print('Error, please send your message again.')
+        return
     return send
 
-def file_recver(port):
-    def recver():
-        # TODO call 立人's code
-        return
-    return recver
+if __name__ == '__main__':
+    # This section is for unit test.
+    # TODO Remove this as client gui part done
+    from queue import Queue
+    MAX_TRANS_AMT = 11
+    server = ('localhost', 16666)
+    rsock, ssock = socket.socket(), socket.socket()
+    FILE_PORT = 16888
 
-def file_sender(ip, port):
-    def sender():
-        # TODO call 立人's code
-        return
-    return sender
-
-def req_file(chatroom, filename):
-    def req():
-        # TODO what'd be done when one press file transfer button
-        return
-    return req
-
+    #recvsock = socket.socket()
+    try:
+        q = Queue(MAX_TRANS_AMT)
+        for i in range(MAX_TRANS_AMT):
+            q.put(i + FILE_PORT)
+        rsock.connect(server)
+        ssock.connect(server)
+        chatroom = Chatroom(
+            fileports = q, 
+            host = 'host', 
+            guest = 'guest',
+        )
+        chatroom.start(
+            rsock=rsock,
+            ssock=ssock,
+        )
+    except OSError as e:
+        print('Connection failed.')
+        print(e)
+        ssock.close()
+        rsock.close()
+        exit()
+    finally:
+        ssock.close()
+        rsock.close()
