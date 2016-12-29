@@ -1,36 +1,36 @@
 #!/usr/bin/env python
 
 import socket
-from config import *
+import config
+from codes import *
 
 if __name__ == '__main__':
     # setup the server
     sock = socket.socket()
     connsock = None
     try:
-        sock.bind(('0.0.0.0', PORT))
-        print('PORT: %d'%PORT)
+        sock.bind(('0.0.0.0', config.PORT))
+        print('PORT: %d'%config.PORT)
         sock.listen(5)
+        connsock, _ = sock.accept()
         while(True):
-            connsock, _ = sock.accept()
             msg = connsock.recv(4096)
-            code = msg[0]
-            msg = msg[1:]
-            print( '%d\t%s'%(code,msg.decode()) )
-            if code == REQUEST_CODE['login']:
-                connsock.send(
-                    bytes([SERVER_CODE['logout_succeed']])+ msg)
-            elif code == REQUEST_CODE['talk']:
-                connsock.send(
-                    bytes([SERVER_CODE['talk_req_succeed']])+ msg)
-            elif code == REQUEST_CODE['logout']:
-                connsock.send(
-                    bytes([SERVER_CODE['logout_req_succeed']])+ msg)
+			code, msg = msg[:1], msg[1:]
+            print( '%d %s'%(code,msg.decode()) )
+            if code == LOGIN_REQUEST:
+                connsock.send( LOGIN_SUCCEED + msg)
+            elif code == TALK_REQUEST:
+                connsock.send( TALK_SUCCEED + msg)
+            elif code == LOGOUT_REQUEST:
+                connsock.send( LOGOUT_SUCCEED + msg)
+            elif code == MSG_REQUEST:
+                connsock.send( MSG_REQUEST + msg)
             else:
                 connsock.send(
                     bytes([SERVER_CODE['req_end']])+ msg)
-            connsock.close()
     except KeyboardInterrupt:
         connsock.close()
+    except ConnectionResetError:
+        pass
     finally:
         sock.close()
