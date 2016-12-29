@@ -6,9 +6,9 @@ from os.path import isfile
 
 MAX_RECV_LEN = 4096
 CMDS = {
-    'start' : ['login', 'register', 'exit']
-    'login' : ['talk', 'logout', 'exit', 'ls']
-    'talk' : ['/leave', '/transfer']
+    'start' : ['login', 'register', 'exit'],
+    'login' : ['talk', 'logout', 'exit', 'ls'],
+    'talk' : ['/leave', '/transfer'],
 }
 
 def cmd_not_found(cmds):
@@ -18,27 +18,30 @@ def cmd_not_found(cmds):
     print()
     return
 
-state_transfer_dict = dict(
-        login_succeed = 'login',
-        talk_req_succeed = 'talk', 
-        logout_succeed = 'start', 
-)
+state_transfer_dict = {
+        LOGIN_SUCCEED : 'login',
+        TALK_SUCCEED : 'talk', 
+        LOGOUT_SUCCEED : 'start', 
+}
 
 def state_handler(sock, cmd, init_state):
     # recv msg from server and send back, return the resulting state
+    # need to send request to server before this function called
     server_msg = sock.recv(MAX_RECV_LEN)
-    while( server_msg[0] != REQUEST_FIN):
-        print('(Server#%d)'%server_msg[0], end=' ')
-        print(server_msg[1:].decode())
-        for (req, state) in state_transfer_dict.items():
-            if server_msg[0] == config.SERVER_CODE[req]:
+    code, msg = server_msg[:1], server_msg[1:]
+    while( code != REQUEST_FIN):
+        print('(Server#%d)'%code[0], end=' ')
+        print(msg.decode())
+        for (condition, state) in state_transfer_dict.items():
+            if code == condition:
                 return state
 
-        if server_msg[0] == 0:
+        if code == b'\x00':
             sock.send(input('(%s)> '%cmd).encode())
             server_msg = sock.recv(MAX_RECV_LEN)
-    print('(Server#%d)'%server_msg[0], end=' ')
-    print(server_msg[1:].decode())
+            code, msg = server_msg[:1], server_msg[1:]
+    print('(Server#%d)'%code[0], end=' ')
+    print(msg.decode())
     return init_state
 
 if __name__ == '__main__':
@@ -71,6 +74,7 @@ if __name__ == '__main__':
                 state = state_handler(sock, usrcmd, state)
 
             elif state == 'login':
+                # TODO create a new socket to recv msg from server
                 if usrcmd.startswith(cmds[0]):
                     # talk
                     guest = usrcmd[len(cmds[0]):].strip()
