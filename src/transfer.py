@@ -10,61 +10,6 @@ from os.path import isfile, basename
 import queue
 
 MAX_RECV_LEN = 4096
-class TransferBox:
-    def __init__(self, sender, recver, filename):
-        # init tk window
-        self.sender = sender
-        self.recver = recver
-        self.root = tk.Tk()
-        self.root.title(filename)
-        self.alive = False
-        self.filename = filename
-
-        # add elements in the window
-        self.label = tk.Label(self.root, text='')
-
-    def start(self, cond):
-        # s: send, r: recv
-        cond = cond[0]
-        self.cond = cond
-        cond_str = dict(
-            s = ('Sending', self.filename, 'to %s' % self.recver),
-            r = ('Receiving', self.filename, 'from %s' % self.sender)
-        )
-
-        self.label['text'] = '%s file %s %s...' % cond_str[cond] 
-
-        self.label.pack()
-        self.root.protocol("WM_DELETE_WINDOW", self.close())
-        
-        self.alive = True
-        Thread(target=self.root.mainloop).run()
-
-    def done(self, chatroom):
-        cond_str = dict(
-            s = 'sent to %s' % self.recver,
-            r = 'recieved from %s' % self.sender,
-        )
-        chatroom.print(
-            'File %s had been %s!' % \
-            (self.filename, cond_str[self.cond])
-        )
-        if self.alive:
-            self.close(1)
-    def close(self, force=False): 
-        def close():
-            chk = True
-            if not force:
-                chk = tkbox.askokcancel(
-                    'Cancel', 
-                    'The transfer won\'t cancel' +
-                    ' even though the window closed.\n' +
-                    'Do you still want to close it?'
-                )
-            if chk:
-                self.alive = False 
-                self.root.destroy()
-        return close
 
 def file_recver(port, chatroom, filename):
     # filename for display, need not contain path
@@ -73,7 +18,12 @@ def file_recver(port, chatroom, filename):
             'Receiving file %s from %s, using port %d' % \
             (filename, chatroom.guest, port)
         )
-        sleep(1) # TODO replace to call 立人's code
+        ### TODO replace to call 立人's code
+        sleep(1) 
+        # recv(port)
+        # create a server with port=port to recv file
+        # *need little modification to notify error
+        ######
         chatroom.print( 'File %s received.' % filename )
 
         chatroom.fileports.put(port)
@@ -88,7 +38,13 @@ def file_sender(addr, chatroom, filename):
             'Sending file %s to %s' % \
             (basename(filename), chatroom.guest)
         )
-        sleep(1) # TODO replace to call 立人's code
+        ### TODO replace to call 立人's code
+        sleep(1) 
+        # send(ip,port,filename)
+        # connect to sender with ip=ip, port=port and then
+        # transfer file with filename
+        # *need little modification to notify error
+        ######
         chatroom.print( 'File %s sended.' % basename(filename) )
         return
     return sender
