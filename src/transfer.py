@@ -66,17 +66,18 @@ def recv_file(chatroom, filename):
             'Do you want to accept file %s from %s?' % \
                 (filename, sender)
         )
-        chatroom.print('Accept:'+ str(accept))
         if accept == True:
             # send the picked port to server 
             # the server will then pass it to the sender
             chatroom.ssock.send(TRANSFER_ACCEPT + str(port).encode())
             chatroom.ssock.recv(MAX_RECV_LEN)
 
+            chatroom.print('File transfer request ACCEPTED.')
             file_recver(port, chatroom, filename)
         else:
             chatroom.ssock.send(TRANSFER_DENY)
             chatroom.ssock.recv(MAX_RECV_LEN)
+            chatroom.print('File transfer request REJECTED.')
     return recv
 
 def req_file(chatroom):
