@@ -38,8 +38,8 @@ class Chatroom():
         self.msgbar.pack()
         self.button.pack()
 
-        self.msgbar.bind('<Return>', send_msg(self))
-        self.button.bind('<Button-1>', req_file(self))
+        self.msgbar.bind('<Return>', thpack(send_msg, self))
+        self.button.bind('<Button-1>', thpack(req_file, self))
         self.root.protocol("WM_DELETE_WINDOW", self.close)
         
         self.alive = True
@@ -61,6 +61,13 @@ class Chatroom():
             self.ssock.send(LEAVE_REQUEST)
             self.ssock.recv(MAX_RECV_LEN)
             self.root.destroy()
+    def kill(self):
+        self.alive = False
+        self.msgbar.bind('<Return>', self.dead_note)
+        self.button.bind('<Button-1>', self.dead_note)
+        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
+    def dead_note(self,e):
+        self.print('The chatroom is not alive.')
 
 def poll_msg(chatroom):
     def poll():
@@ -77,27 +84,40 @@ def poll_msg(chatroom):
                 th_recvfile = Thread()
                 th_recvfile.run = recv_file(chatroom, filename)
                 th_recvfile.start()
+            elif server_msg[:1] == LEAVE_REQUEST:
+                chatroom.print('%s leave the chatroom.' % \
+                    chatroom.guest)
+                chatroom.kill()
             sleep(1)
     return poll
 
 
+def thpack(function, *args, **kwargs):
+    # pack the fuction with thread and change the input arguments
+    def pack(*e):
+        th = Thread(
+            target = function,
+            args = args,
+            kwargs = kwargs,
+            )
+        th.start()
+    return pack
+
 def send_msg(chatroom):
-    def send(e):
-        sock = chatroom.ssock
-        msg = chatroom.msgbar.get()
-        sock.send( MSG_REQUEST + msg.encode() )
-        try:
-            server_msg = sock.recv(MAX_RECV_LEN)
-        except socket.timeout:
-            chatroom.print('Timeout, trying to send again.')
-            server_msg = sock.recv(MAX_RECV_LEN)
-        if server_msg[0] == REQUEST_FIN[0]:
-            chatroom.print(server_msg[1:])
-            chatroom.msgbar.delete(0, tk.END)
-        else:
-            chatroom.print('Error, please send your message again.')
-        return
-    return send
+    sock = chatroom.ssock
+    msg = chatroom.msgbar.get()
+    sock.send( MSG_REQUEST + msg.encode() )
+    try:
+        server_msg = sock.recv(MAX_RECV_LEN)
+    except socket.timeout:
+        chatroom.print('Timeout, trying to send again.')
+        server_msg = sock.recv(MAX_RECV_LEN)
+    if server_msg[0] == REQUEST_FIN[0]:
+        chatroom.print(server_msg[1:])
+        chatroom.msgbar.delete(0, tk.END)
+    else:
+        chatroom.print('Error, please send your message again.')
+    return
 
 if __name__ == '__main__':
     # This section is for unit test.

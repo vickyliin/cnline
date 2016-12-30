@@ -39,20 +39,28 @@ def handler(sock, print=thprint):
                 elif code == TRANSFER_REQUEST:
                     # simulate the recver, toggle accept/deny
                     i += 1
-                    if i%2:
+                    if i%2 == 0:
                         connsock.send(TRANSFER_ACCEPT + b'ip:port')
                     else:
                         connsock.send(TRANSFER_DENY + b'Transfer denied by guest.')
                 elif code == b'\x00':
-                    # polling, simulate
-                    # 1) file transfer request from remote
-                    # 2) msg from remote
-                    # 3) no new msg
+                    # polling, simulate:
+                    print(str(j))
                     j += 1
-                    if j%10 == 0:
+
+                    # peer leave chatroom
+                    if j == 30:
+                        connsock.send(LEAVE_REQUEST)
+
+                    # file transfer request from remote
+                    elif j%10 == 0:
                         connsock.send(TRANSFER_REQUEST + b'filename')
+                    # msg from remote
                     elif j%5 == 3:
                         connsock.send(MSG_REQUEST + b'[guest msg]')
+
+
+                    # no new msg
                     else:
                         connsock.send(REQUEST_FIN)
                 else:
