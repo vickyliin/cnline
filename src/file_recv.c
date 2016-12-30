@@ -20,6 +20,7 @@
 	            lock_reg((fd), F_SETLKW, F_WRLCK, (offset), (whence), (len))
 #define un_lock(fd, offset, whence, len) \
 	            lock_reg((fd), F_SETLK, F_UNLCK, (offset), (whence), (len))
+const int TIMEOUT=10;
 int lock_reg(int fd, int cmd, int type, off_t offset, int whence, off_t len)
 {
     struct flock lock;
@@ -60,11 +61,28 @@ int main(int argc, char** argv) {
     int i,num=0;
     int clilen;
     char buf[1024],cmd[1024];
+    fd_set readyset;
     if (argc != 3) {
         fprintf(stderr, "usage: %s [port] [filename]\n", argv[0]);
         exit(1);
     }
     init_server((unsigned short) atoi(argv[1]));
+    struct timeval slice;
+    int cnt=0;
+    while (1) {
+	cnt++;
+	if(cnt>TIMEOUT*10)
+	{
+	    fprintf(stderr,"Connection Timeout!\n");
+	    exit(1);
+	}
+        FD_ZERO(&readyset);
+        FD_SET(svr.listen_fd,&readyset);
+    	slice.tv_sec=0;
+    	slice.tv_usec=100000ul;
+	select(1024,&readyset,0,0,&slice);
+	if(FD_ISSET(svr.listen_fd,&readyset))break;
+    }
     clilen = sizeof(cli.addr);
     cli.fd = accept(svr.listen_fd, (struct sockaddr*)&cli.addr, (socklen_t*)&clilen);
     int byte,fd=open(argv[2],O_WRONLY | O_TRUNC | O_CREAT);
