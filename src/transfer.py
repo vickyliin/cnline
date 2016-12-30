@@ -47,38 +47,36 @@ def file_sender(addr, chatroom, filename):
 
 def recv_file(chatroom, filename):
     # do when recv a file request from server
-    def recv():
-        sender = chatroom.guest
-        try:
-            port = chatroom.fileports.get()
-        except queue.Empty:
-            chatroom.print(
-                'You miss a file %s from %s ' % (filename,sender) +
-                'because the MAX amount of file receive' +
-                ' (%d) had been reached.' % MAX_TRANSFER_AMT
-            )
-            chatroom.ssock.send(TRANSFER_DENY)
-            chatroom.ssock.recv(MAX_RECV_LEN)
-            return
-
-        accept = tkbox.askokcancel(
-            'file from %s' % sender,
-            'Do you want to accept file %s from %s?' % \
-                (filename, sender)
+    sender = chatroom.guest
+    try:
+        port = chatroom.fileports.get()
+    except queue.Empty:
+        chatroom.print(
+            'You miss a file %s from %s ' % (filename,sender) +
+            'because the MAX amount of file receive' +
+            ' (%d) had been reached.' % MAX_TRANSFER_AMT
         )
-        if accept == True:
-            # send the picked port to server 
-            # the server will then pass it to the sender
-            chatroom.ssock.send(TRANSFER_ACCEPT + str(port).encode())
-            chatroom.ssock.recv(MAX_RECV_LEN)
+        chatroom.ssock.send(TRANSFER_DENY)
+        chatroom.ssock.recv(MAX_RECV_LEN)
+        return
 
-            chatroom.print('File transfer request ACCEPTED.')
-            file_recver(port, chatroom, filename)
-        else:
-            chatroom.ssock.send(TRANSFER_DENY)
-            chatroom.ssock.recv(MAX_RECV_LEN)
-            chatroom.print('File transfer request REJECTED.')
-    return recv
+    accept = tkbox.askokcancel(
+        'file from %s' % sender,
+        'Do you want to accept file %s from %s?' % \
+            (filename, sender)
+    )
+    if accept == True:
+        # send the picked port to server 
+        # the server will then pass it to the sender
+        chatroom.ssock.send(TRANSFER_ACCEPT + str(port).encode())
+        chatroom.ssock.recv(MAX_RECV_LEN)
+
+        chatroom.print('File transfer request ACCEPTED.')
+        file_recver(port, chatroom, filename)
+    else:
+        chatroom.ssock.send(TRANSFER_DENY)
+        chatroom.ssock.recv(MAX_RECV_LEN)
+        chatroom.print('File transfer request REJECTED.')
 
 def req_file(chatroom):
     # do when click the file button

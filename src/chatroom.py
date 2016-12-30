@@ -40,11 +40,10 @@ class Chatroom():
         # TODO arrange the elements
 
 
-    def start(self, ssock, rsock):
+    def start(self, ssock):
         # ssock: initiative sending message
         # rsock: polling for new message
         self.ssock = ssock
-        self.rsock = rsock
 
         # pack elements in the window to show them in mainloop
         self.chatbox.pack()
@@ -90,29 +89,28 @@ class Chatroom():
         self.button.bind('<Button-1>', self.dead_note)
         self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
 
-    def dead_note(self,e):
+    def dead_note(self, *arg):
         self.print('The chatroom is not alive.')
 
 
 def poll_msg(chatroom):
-    sock = chatroom.rsock
-    while chatroom.alive:
-        sock.send(b'\x00')
-        server_msg = sock.recv(MAX_RECV_LEN)
+    with socket.socket() as sock:
+        sock.connect(chatroom.ssock.getpeername())
+        while chatroom.alive:
+            sock.send(b'\x00')
+            server_msg = sock.recv(MAX_RECV_LEN)
 
-        if server_msg[:1] == MSG_REQUEST:
-            chatroom.print(server_msg[1:])
+            if server_msg[:1] == MSG_REQUEST:
+                chatroom.print(server_msg[1:])
 
-        elif server_msg[:1] == TRANSFER_REQUEST:
-            filename = server_msg[1:].decode()
-            th_recvfile = Thread()
-            th_recvfile.run = recv_file(chatroom, filename)
-            th_recvfile.start()
-        elif server_msg[:1] == LEAVE_REQUEST:
-            chatroom.print('%s leave the chatroom.' % \
-                chatroom.guest)
-            chatroom.kill()
-        sleep(1)
+            elif server_msg[:1] == TRANSFER_REQUEST:
+                filename = server_msg[1:].decode()
+                thpack(recv_file, chatroom, filename)()
+            elif server_msg[:1] == LEAVE_REQUEST:
+                chatroom.print('%s leave the chatroom.' % \
+                    chatroom.guest)
+                chatroom.kill()
+            sleep(1)
 
 
 def send_msg(chatroom):
@@ -137,31 +135,24 @@ if __name__ == '__main__':
     from queue import Queue
     MAX_TRANS_AMT = 11
     server = ('localhost', 16666)
-    rsock, ssock = socket.socket(), socket.socket()
     FILE_PORT = 16888
 
-    #recvsock = socket.socket()
+    ssock = socket.socket()
     try:
         q = Queue(MAX_TRANS_AMT)
         for i in range(MAX_TRANS_AMT):
             q.put(i + FILE_PORT)
-        rsock.connect(server)
         ssock.connect(server)
         chatroom = Chatroom(
             fileports = q, 
             host = 'host', 
             guest = 'guest',
         )
-        chatroom.start(
-            rsock=rsock,
-            ssock=ssock,
-        )
+        chatroom.start(ssock)
     except OSError as e:
         print('Connection failed.')
         print(e)
         ssock.close()
-        rsock.close()
         exit()
     finally:
         ssock.close()
-        rsock.close()
