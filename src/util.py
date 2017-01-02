@@ -2,6 +2,7 @@ from threading import Thread, Lock
 import tkinter as tk
 import tkinter.messagebox as tkbox
 import tkinter.filedialog as tkfile
+import tkinter.simpledialog as tksd
 import socket
 from time import sleep
 from os.path import isfile, basename

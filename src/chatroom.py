@@ -4,13 +4,13 @@ from util import *
 from transfer import *
 from history import *
 
-class ChatroomManager():
+class LoginManager():
     # the manager will 
-    # 1) create a thread to poll requess from server
-    # 2) record file receiving status
-    # 3) build a chatroom as recving a talk request
-    # 4) record the file recving ports
-    # 5) record the existing chatrooms
+    # 1) poll for server msg
+    # 2) build a chatroom as recving a msg/file transfer request
+    # 3) record the file recving ports
+    # 4) record the existing chatrooms
+    # 5) ls, talk, logout
 
     def __init__(self, sock, username=None):
         self.username = username
@@ -19,6 +19,22 @@ class ChatroomManager():
         self.chatroom_lock = Lock()
         self.socket_lock = Lock()
         self.tkroot = tk.Tk()
+        self.login = True
+
+        self.tkroot.title('CNLine')
+
+        self.elements = []
+        button_text = ['Online Users', 'New Chatroom', 'Logout']
+        button_commands = [self.ls, self.new, self.logout]
+
+        self.msgbox = tk.Text(self.tkroot)
+        self.elements.append(self.msgbox)
+        for text,command in zip(button_text, button_commands):
+            self.elements.append(tk.Button(
+                self.tkroot, 
+                text=text,
+                command=command
+            ))
 
         for i in range(MAX_TRANS_AMT):
             self.fileports.put(i + config.FILE_PORT)
@@ -26,8 +42,45 @@ class ChatroomManager():
         self.server = sock.getpeername()
         self.sock = sock
 
+    def send(self, code, msg=b''):
+        if type(msg) != bytes:
+            msg = ('%s' % msg).encode()
+        self.socket_lock.acquire()
+        self.sock.send( code + msg )
+    def recv(self):
+        server_msg = self.sock.recv(MAX_RECV_LEN)
+        self.socket_lock.release()
+        return server_msg
+    def print(self, msg, end='\n'):
+        if type(msg) == bytes:
+            msg = msg.decode()
+        self.msgbox.insert('1.0', msg+end)
+
+    def ls(self):
+        self.send(LIST_REQUEST)
+        server_msg = self.recv()
+        code, msg = server_msg[:1], server_msg[1:]
+        self.print('--------------------------------------')
+        self.print(msg)
+        self.print('\n--------------------------------------')
+    def logout(self):
+        self.send(LOGOUT_REQUEST)
+        self.recv()
+        self.close()
+        self.login = False
+    def new(self):
+        guest = 'username'
+        guest = tksd.askstring('New Chatroom', 'To:')
+        if guest:
+            self.build(guest)
+            chatroom = self.chatrooms[guest]
+            chatroom.root.after(1000, self.poll)
+            chatroom.root.mainloop()
+
     def start(self):
         self.alive = True
+        for element in self.elements:
+            element.pack()
 
         self.rsock = socket.socket()
         self.rsock.connect(self.server)
@@ -63,15 +116,20 @@ class ChatroomManager():
             chatroom = self.chatrooms[guest]
             chatroom.root.after(1000, self.poll)
 
-        if chatroom.alive:
-            if code == MSG_REQUEST:
-                # print on the corresponding chatroom
-                chatroom.print('[%s]: %s' % (guest,msg))
+        if not chatroom.alive:
+            new_chatroom = True
+            self.build(guest)
+            chatroom = self.chatrooms[guest]
+            chatroom.root.after(1000, self.poll)
 
-            elif code == TRANSFER_REQUEST:
-                # create a thread to recv file
-                filename = msg
-                thpack(recv_file, chatroom, filename)()
+        if code == MSG_REQUEST:
+            # print on the corresponding chatroom
+            chatroom.print('[%s]: %s' % (guest,msg))
+
+        elif code == TRANSFER_REQUEST:
+            # create a thread to recv file
+            filename = msg
+            thpack(recv_file, chatroom, filename)()
 
 
         if new_chatroom:
@@ -104,7 +162,7 @@ class ChatroomManager():
         self.alive = False
         self.rsock.close()
 
-class Chatroom():
+class Chatroom:
     def __init__(self, fileports, root, host, guest, lock):
         # init tk window
         self.host = host
@@ -170,8 +228,10 @@ class Chatroom():
 
     def close(self): 
         # user close the window
+        self.lock.acquire()
         self.alive = False 
         self.root.destroy()
+        self.lock.release()
 
 def send_msg(chatroom):
     # do when press enter in the msgbar:
@@ -204,7 +264,7 @@ if __name__ == '__main__':
     sock = socket.socket()
     try:
         sock.connect(server)
-        manager = ChatroomManager(
+        manager = LoginManager(
             username = 'host',
             sock = sock
         )

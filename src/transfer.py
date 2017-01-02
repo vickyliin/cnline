@@ -36,6 +36,7 @@ def file_sender(addr, chatroom, filename):
 
 def recv_file(chatroom, filename):
     # do when recv a file request from server
+    chatroom.root.protocol("WM_DELETE_WINDOW", lambda x=1: x)
     sender = chatroom.guest
     try:
         port = chatroom.fileports.get()
@@ -65,9 +66,11 @@ def recv_file(chatroom, filename):
         chatroom.send(TRANSFER_DENY)
         chatroom.recv()
         chatroom.print('You just rejected a file from %s.' % chatroom.guest)
+    chatroom.root.protocol("WM_DELETE_WINDOW", chatroom.close)
 
 def req_file(chatroom):
     # do when click the file button
+    chatroom.root.protocol("WM_DELETE_WINDOW", lambda x=1: x)
     filename = tkfile.askopenfilename()
     if not filename:
         # user cancel the file browser
@@ -86,6 +89,6 @@ def req_file(chatroom):
             file_sender(addr, chatroom, filename)
         elif code == TRANSFER_DENY:
             chatroom.print(server_msg[1:])
-    
+    chatroom.root.protocol("WM_DELETE_WINDOW", chatroom.close)
     return
 
