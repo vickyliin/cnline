@@ -7,6 +7,7 @@ import socket
 import select
 from hashlib import sha256
 from datetime import datetime
+from codes import *
 import config
 
 class Connection:
@@ -42,61 +43,71 @@ class DBConnection:
 
 def register_handler(conn, db):
     while True:
-        conn.sock.send(b'''\0-----Registration-----\nPlease enter you username, or /cancel to cancel :''')
+        # ask for username
+        conn.sock.send(b"\x00-----Registration-----\nPlease enter you username, or /cancel to cancel :")
         yield
+
         username = conn.msg.decode('UTF-8')
-        if username == '/cancel':
-            conn.sock.send(bytes([config.SERVER_CODE['req_end']]))
-            conn.task = None
-            return
-        r = db.fetch_user(username)
-        if r != None:
-            conn.sock.send(b"\0Sorry, this username is already used, please try with another.\n")
+        if username == "/cancel":
+            conn.sock.send(REQUEST_FIN + b'Request canceled.')
+            raise StopIteration
+        # check if username already in use.
+        if db.fetch_user(username) != None:
+            conn.sock.send(b"\x00Sorry, this username is already used, please try with another.\n")
         else:
             break
     while True:
-        conn.sock.send(b"\0Please enter you password:")
+        # ask for password
+        conn.sock.send(b"\x00Please enter you password:")
         yield
         password = conn.msg.decode('UTF-8')
         
-        conn.sock.send(b"\0Please enter you password again:")
+        # confirm password
+        conn.sock.send(b"\x00Please enter you password again:")
         yield
+
         password_2 = conn.msg.decode('UTF-8')
 
         if password == password_2:
             break
         else:
-            conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b"Two password doesn't match!!\n")
+            conn.sock.send(b"\x00Two password doesn't match!!\n")
 
     print("%s, %s" % (username, password))
     db.register(username, password)
-    conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b"Success")
-    conn.task = None
-
+    conn.sock.send(REQUEST_FIN + b" Registration Success!")
+    raise StopIteration
+    
 def login_handler(conn, db):
     username = conn.msg.decode('UTF-8')
     # check if username exists
-    conn.sock.send(b'''\0Enter your password or /cancel to cancel: ''')
+    user_inf = db.fetch_user(username)
+    if user_inf == None:
+        conn.sock.send(REQUEST_FIN + b"User not found!\n")
+        raise StopIteration
+    conn.sock.send(b"\x00Enter your password or /cancel to cancel: ")
     yield
+
     password = conn.msg.decode('UTF-8')
     if password == '/cancel':
-        conn.sock.send(bytes([config.SERVER_CODE['req_end']]))
-        conn.task = None
-        return
+        conn.sock.send(REQUEST_FIN + b'Request canceled.')
+        raise StopIteration
     # check password from db
-    
-    conn.sock.send(
-        bytes( [config.SERVER_CODE['login_succeed']] )+
+    if sha256((password + config.PASSWORD_SALT).encode()).hexdigest() != user_inf[2]:
+        conn.sock.send(REQUEST_FIN + b'Password error!')
+        raise StopIteration
+    conn.sock.send(LOGIN_SUCCEED + 
         bytes( 'Welcome %s, please enter a command.'%username, 'ASCII'))
     print("User %s logged in." % (username,))
     conn.login = True
     conn.username = username
-    conn.task = None
+    raise StopIteration
 
 REQUEST_HANDLERS = {
     0x01 : register_handler,
     0x02 : login_handler
 }
+
 def handle_request(conn, db):
     msg = conn.sock.recv(4096)
     print("handling request from : " + str(conn.sock))
@@ -112,7 +123,7 @@ def handle_request(conn, db):
         try:
             conn.task = REQUEST_HANDLERS[request_type](conn, db)
         except KeyError:
-            conn.sock.send(bytes([config.SERVER_CODE['req_end']])+b'Unestablished function.')
+            conn.sock.send(REQUEST_FIN + b'Unestablished function.')
     print("Resuming Task")
     try:
         conn.msg = msg
@@ -124,7 +135,7 @@ def handle_request(conn, db):
 if __name__ == '__main__':
     # setup the server
     with socket.socket() as sock, select.epoll() as epoll:
-        # Initialize sqlite db
+        # Initialize the sqlite db connection
         db = DBConnection()
         try:
             # bind the socket and register to epoll object
