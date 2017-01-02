@@ -12,4 +12,11 @@ conn.cursor().execute('''CREATE TABLE IF NOT EXISTS users(
                             last_login TEXT
                         )''')
 
+conn.cursor().execute('''CREATE TABLE IF NOT EXISTS messages(
+                            id  INTEGER PRIMARY KEY,
+                            src TEXT NOT NULL,
+                            dest TEXT NOT NULL,
+                            time TEXT NOT NULL,
+                            msg TEXT NOT NULL
+                        )''')
 conn.commit()

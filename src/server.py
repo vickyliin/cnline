@@ -44,6 +44,8 @@ class Server:
                             # remote socket closed
                             except socket.error as e:
                                 print("connetion closed : " + str(conn.sock))
+                                if conn.username in self.login_connections:
+                                    del self.login_connections[conn.username]
                                 del self.connections[conn.sock.fileno()]
                                 conn.sock.close()
             except KeyboardInterrupt:
@@ -71,7 +73,7 @@ class DBConnection:
                                      username,
                                      sha256((password + config.PASSWORD_SALT).encode()).hexdigest(),
                                      datetime.utcnow().isoformat(' ')
-                                ))
+                             ))
 
     def fetch_user(self, username):
         with self.conn:
@@ -81,6 +83,15 @@ class DBConnection:
 
     def close(self):
         self.conn.close()
+
+    def save_message(self, message, users):
+        with self.conn:
+            self.conn.execute('''INSERT INTO messages(src, dest, time, msg)
+                                 VALUES(?, ?, ?, ?)''', (
+                                     *users,
+                                     datetime.utcnow().isoformat(' '),
+                                     message
+                             ))
 
 def register_handler(conn, server):
     while True:
@@ -142,15 +153,21 @@ def login_handler(conn, server):
         bytes( 'Welcome %s, please enter a command.'%username, 'ASCII'))
     print("User %s logged in." % (username,))
     conn.login = True
-    conn.username = username
-    server.login_connections[conn.sock.fileno()] = conn
+    conn.username = user_inf[1]
+    conn.uid = user_inf[0]
+    server.login_connections[username] = conn
     raise StopIteration
 
 def ls_handler(conn, server):
     list_str = ""
-    for conn in server.login_connections.values():
-        list_str += "%s " % conn.username
+    for username in server.login_connections:
+        list_str += "%s " % username
     conn.sock.send(REQUEST_FIN + list_str.encode())
+    raise StopIteration
+
+def logout_handler(conn, server):
+    del server.login_connections[conn.username]
+    conn.sock.send(LOGOUT_SUCCEED)
     raise StopIteration
 
 REQUEST_HANDLERS = {
@@ -158,7 +175,7 @@ REQUEST_HANDLERS = {
     LOGIN_REQUEST : login_handler,
     LIST_REQUEST : ls_handler,
     DISCON_REQUEST : None,
-    LOGOUT_REQUEST : None,
+    LOGOUT_REQUEST : logout_handler,
 }
 
 def handle_request(conn, server):
