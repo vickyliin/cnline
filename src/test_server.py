@@ -27,10 +27,6 @@ def handler(sock, print=thprint):
             i,j = 0,0
             leave = False
             while(True):
-                if leave:
-                    connsock.send(REQUEST_FIN)
-                    continue
-                    
                 msg = connsock.recv(4096)
                 if msg == b'':
                     print('No msg, client may leave')
@@ -57,6 +53,8 @@ def handler(sock, print=thprint):
                     # peer leave chatroom
                     if j == 30:
                         connsock.send(LEAVE_REQUEST+b'guest\n')
+                    elif j == 5:
+                        connsock.send(TALK_REQUEST+b'guest2\n')
 
                     elif j > 30:
                         connsock.send(REQUEST_FIN)

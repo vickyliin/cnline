@@ -18,92 +18,109 @@ class ChatroomManager():
         self.fileports = queue.Queue(MAX_TRANS_AMT)
         self.chatroom_lock = Lock()
         self.socket_lock = Lock()
+        self.tkroot = tk.Tk()
 
         for i in range(MAX_TRANS_AMT):
             self.fileports.put(i + FILE_PORT)
 
-        self.alive = True
+        self.server = sock.getpeername()
         self.sock = sock
 
-        thpack(self.poll)()
+    def start(self):
+        self.alive = True
+
+        self.rsock = socket.socket()
+        self.rsock.connect(self.server)
+        self.tkroot.protocol('WM_DELETE_WINDOW', self.close)
+        self.tkroot.after(0, self.poll)
+
+        self.tkroot.mainloop()
 
     def poll(self):
         # create a new socket to poll talk request from another user
         # a new socket is created to avoid sync receiving problem
-        with socket.socket() as sock:
-            sock.connect(self.sock.getpeername())
-            while self.alive:
-                sock.send(POLL_REQUEST + self.username.encode())
-                server_msg = sock.recv(MAX_RECV_LEN)
-                code, msg = server_msg[:1], server_msg[1:]
+        sock = self.rsock
+        try:
+            sock.send(POLL_REQUEST + self.username.encode())
+            server_msg = sock.recv(MAX_RECV_LEN)
+        except OSError:
+            return
+        code, msg = server_msg[:1], server_msg[1:]
 
-                if code == REQUEST_FIN:
-                    sleep(1)
-                    continue
+        if code == REQUEST_FIN:
+            self.tkroot.after(1000, self.poll)
+            return
 
-                guest, msg = msg.decode().split('\n')
+        guest, msg = msg.decode().split('\n')
 
-                if code != TALK_REQUEST:
-                    chatroom = self.chatrooms[guest]
+        if code != TALK_REQUEST:
+            try:
+                chatroom = self.chatrooms[guest]
+            except KeyError:
+                self.tkroot.after(1000, self.poll)
+                return
+            
 
-                if code == TALK_REQUEST:
-                    # build a new chatroom and start
-                    thpack(self.build, guest)()
+        if code == TALK_REQUEST:
+            # build a new chatroom and start
+            self.build(guest)
+            chatroom = self.chatrooms[guest]
+            chatroom.root.after(1000, self.poll)
+            chatroom.root.mainloop()
 
-                elif code == MSG_REQUEST:
-                    # print on the corresponding chatroom
-                    chatroom.print('[%s]: %s' % (guest,msg))
+        elif chatroom.alive:
+            if code == MSG_REQUEST:
+                # print on the corresponding chatroom
+                chatroom.print('[%s]: %s' % (guest,msg))
 
-                elif code == TRANSFER_REQUEST:
-                    # create a thread to recv file
-                    filename = msg
-                    thpack(recv_file, chatroom, filename)()
+            elif code == TRANSFER_REQUEST:
+                # create a thread to recv file
+                filename = msg
+                thpack(recv_file, chatroom, filename)()
 
-                elif code == LEAVE_REQUEST:
-                    # peer leave the chatroom
-                    chatroom.print('%s leave the chatroom.' % \
-                        chatroom.guest)
-                    chatroom.kill()
+            elif code == LEAVE_REQUEST:
+                # peer leave the chatroom
+                chatroom.print('%s leave the chatroom.' % \
+                    chatroom.guest)
+                chatroom.kill()
 
-
-                sleep(1)
+        if self.alive:
+            self.tkroot.after(1000, self.poll)
 
     def build(self, guest):
+        self.chatroom_lock.acquire()
         new_chatroom = Chatroom(
             fileports = self.fileports,
+            root = self.tkroot,
             lock = self.socket_lock,
             host = self.username,
             guest = guest
         )
         
-        self.chatroom_lock.acquire()
         self.chatrooms[guest] = new_chatroom
-        self.chatroom_lock.release()
 
         new_chatroom.start(self.sock)
-
-        # user leave the chatroom
-        self.chatroom_lock.acquire()
-        self.chatrooms[guest] = None
         self.chatroom_lock.release()
 
-
     def close(self):
-        print(self.chatrooms.items())
+        self.tkroot.destroy()
+        self.chatroom_lock.acquire()
         for (guest, chatroom) in self.chatrooms.items():
-            if chatroom != None:
+            if chatroom.alive:
+                chatroom.alive = False
                 chatroom.send(LEAVE_REQUEST)
                 chatroom.recv()
-                chatroom.print('You just logged out.')
-                chatroom.kill()
+        self.chatroom_lock.release()
         self.alive = False
+        self.rsock.close()
 
 class Chatroom():
-    def __init__(self, fileports, host, guest, lock):
+    def __init__(self, fileports, root, host, guest, lock):
         # init tk window
         self.host = host
         self.guest = guest
-        self.root = tk.Tk()
+
+        self.root = tk.Toplevel(root)
         self.root.title(guest)
         self.alive = False
         self.fileports = fileports
@@ -142,9 +159,6 @@ class Chatroom():
         
         # open the window
         self.alive = True
-        self.root.mainloop()
-        self.root.quit()
-
 
     def print(self, msg, end='\n'):
         if type(msg) == bytes:
@@ -221,10 +235,7 @@ if __name__ == '__main__':
             username = 'host',
             sock = sock
         )
-
-        input('Close:')
-        manager.close()
-
+        manager.start()
     except OSError as e:
         print('Connection failed.')
         print(e)
