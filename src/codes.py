@@ -9,15 +9,12 @@ POLL_REQUEST = bytes([0x07])
 ### Server response
 REQUEST_FIN = bytes([0x01])
 LOGIN_SUCCEED = bytes([0x02])
-TALK_SUCCEED = bytes([0x03])
 LOGOUT_SUCCEED = bytes([0x04])
 
 ### Both used (client to another client, via server)
 # [code][peer username]\n[msg]
 
 MSG_REQUEST = bytes([0x80]) # [msg] = user send msg
-TALK_REQUEST = bytes([0x81]) # [msg] empty
-LEAVE_REQUEST = bytes([0x82]) # [msg] empty
 TRANSFER_REQUEST = bytes([0x83]) # [msg] = filename
 
 TRANSFER_ACCEPT = bytes([0x85])

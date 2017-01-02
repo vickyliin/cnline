@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from util import *
+from chatroom import *
 
 MAX_RECV_LEN = 4096
 CMDS = {
@@ -72,6 +73,7 @@ if __name__ == '__main__':
 
             elif state == 'login':
                 manager = ChatroomManager(sock, username)
+                manager.start()
                 if usrcmd.startswith(cmds[0]):
                     # talk
                     guest = usrcmd[len(cmds[0]):].strip()
@@ -94,30 +96,6 @@ if __name__ == '__main__':
                     continue
                 state = state_handler(sock, usrcmd, state)
 
-            elif state == 'talk':
-                if usrcmd.startswith(cmds[0]):
-                    # leave 
-                    chk = input('Do you really wanna leave the talk [y/N] ? ')
-                    if not chk in ['y','Y']:
-                        continue
-                    sock.send(LEAVE_REQUEST)
-
-                elif usrcmd.startswith(cmds[1]):
-                    # file transfer
-                    if usrcmd[len(cmds[1]):] == '':
-                        filename = input('Please enter the file name\n> ')
-                    while not isfile(filename):
-                        filename = input('File %s not found, please enter again or enter /cancel to cancel\n> ' % filename)
-                        if filename == '/cancel':
-                            break
-                    if filename == '/cancel':
-                        continue
-                    sock.send(TRANSFER_REQUEST + filename.encode())
-                else:
-                    sock.send(MSG_REQUEST + usrsmd.encode())
-
-                state = state_handler(sock, usrcmd, state)
-                
     except OSError:
         print('Connection failed.')
     except KeyboardInterrupt:

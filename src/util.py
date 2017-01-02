@@ -11,7 +11,7 @@ import config
 from codes import *
 
 MAX_RECV_LEN = 4096
-MAX_TALK_AMT = 20
+MAX_TRANS_AMT = 11
 
 def thpack(function, *args, name = None, **kwargs):
     # pack the fuction with thread and change the input arguments

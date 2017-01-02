@@ -21,7 +21,7 @@ class ChatroomManager():
         self.tkroot = tk.Tk()
 
         for i in range(MAX_TRANS_AMT):
-            self.fileports.put(i + FILE_PORT)
+            self.fileports.put(i + config.FILE_PORT)
 
         self.server = sock.getpeername()
         self.sock = sock
@@ -53,22 +53,17 @@ class ChatroomManager():
 
         guest, msg = msg.decode().split('\n')
 
-        if code != TALK_REQUEST:
-            try:
-                chatroom = self.chatrooms[guest]
-            except KeyError:
-                self.tkroot.after(1000, self.poll)
-                return
-            
-
-        if code == TALK_REQUEST:
+        try:
+            chatroom = self.chatrooms[guest]
+            new_chatroom = False
+        except KeyError:
             # build a new chatroom and start
+            new_chatroom = True
             self.build(guest)
             chatroom = self.chatrooms[guest]
             chatroom.root.after(1000, self.poll)
-            chatroom.root.mainloop()
 
-        elif chatroom.alive:
+        if chatroom.alive:
             if code == MSG_REQUEST:
                 # print on the corresponding chatroom
                 chatroom.print('[%s]: %s' % (guest,msg))
@@ -78,12 +73,9 @@ class ChatroomManager():
                 filename = msg
                 thpack(recv_file, chatroom, filename)()
 
-            elif code == LEAVE_REQUEST:
-                # peer leave the chatroom
-                chatroom.print('%s leave the chatroom.' % \
-                    chatroom.guest)
-                chatroom.kill()
 
+        if new_chatroom:
+            chatroom.root.mainloop()
         if self.alive:
             self.tkroot.after(1000, self.poll)
 
@@ -108,8 +100,6 @@ class ChatroomManager():
         for (guest, chatroom) in self.chatrooms.items():
             if chatroom.alive:
                 chatroom.alive = False
-                chatroom.send(LEAVE_REQUEST)
-                chatroom.recv()
         self.chatroom_lock.release()
         self.alive = False
         self.rsock.close()
@@ -133,11 +123,10 @@ class Chatroom():
         self.histbtn = tk.Button(self.root, text='History')
 
         self.elements = [ 
-            # (tk object, bind event, event reaction, offline access)
-            (self.chatbox, None, None, True),
-            (self.msgbar, '<Return>', send_msg, False),
-            (self.filebtn, '<Button-1>', req_file, False),
-            (self.histbtn, '<Button-1>', req_hist, True),
+            (self.chatbox, None, None),
+            (self.msgbar, '<Return>', send_msg),
+            (self.filebtn, '<Button-1>', req_file),
+            (self.histbtn, '<Button-1>', req_hist),
         ]
 
         # TODO arrange the elements
@@ -147,7 +136,7 @@ class Chatroom():
         # sock: initiative sending message
         self.sock = sock
 
-        for (tkobj, event, funct, offline) in self.elements:
+        for (tkobj, event, funct) in self.elements:
             # pack elements in the window to show them in mainloop
             tkobj.pack()
             # add event listenners
@@ -182,22 +171,7 @@ class Chatroom():
     def close(self): 
         # user close the window
         self.alive = False 
-        self.send(LEAVE_REQUEST)
-        self.recv()
         self.root.destroy()
-
-    def kill(self):
-        # the chatroom kill itself
-        self.alive = False
-
-        # close the functions not apply offline access 
-        for (tkobj, event, funct, offline) in self.elements:
-            if not offline:
-                tkobj.bind(event, self.dead_note)
-        self.root.protocol("WM_DELETE_WINDOW", self.root.destroy)
-
-    def dead_note(self, *arg):
-        self.print('The chatroom is not alive.')
 
 def send_msg(chatroom):
     # do when press enter in the msgbar:
@@ -224,7 +198,6 @@ def send_msg(chatroom):
 if __name__ == '__main__':
     # This section is for unit test.
     # TODO Remove this as client gui part done
-    MAX_TRANS_AMT = 11
     server = ('localhost', 16666)
     FILE_PORT = 16888
 

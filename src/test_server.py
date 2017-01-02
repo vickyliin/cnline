@@ -49,27 +49,19 @@ def handler(sock, print=thprint):
                     # polling, simulate:
                     print(str(j))
                     j += 1
-
-                    # peer leave chatroom
-                    if j == 30:
-                        connsock.send(LEAVE_REQUEST+b'guest\n')
-                    elif j == 5:
-                        connsock.send(TALK_REQUEST+b'guest2\n')
-
-                    elif j > 30:
+                    if j > 30:
                         connsock.send(REQUEST_FIN)
 
-                    elif j == 1:
-                        connsock.send(TALK_REQUEST+b'guest\n')
-
-
-                    # file transfer request from remote
-                    elif j%10 == 0:
-                        connsock.send(TRANSFER_REQUEST+b'guest\n' + b'filename')
                     # msg from remote
                     elif j%5 == 3:
                         connsock.send(MSG_REQUEST+b'guest\nmsg')
-
+                    elif j%5 == 2:
+                        connsock.send(MSG_REQUEST+b'guest2\nmsg')
+                    # file transfer request from remote
+                    elif j%10 == 0:
+                        connsock.send(TRANSFER_REQUEST+b'guest\nfilenema')
+                    elif j%10 == 5:
+                        connsock.send(TRANSFER_REQUEST+b'guest2\nfilename')
 
                     # no new msg
                     else:
