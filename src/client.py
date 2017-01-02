@@ -72,7 +72,8 @@ if __name__ == '__main__':
                     print('You just logged out.')
                     state = 'start'
                 else:
-                    usrcmd = input('\n(login)> ')
+                    print('Type anything except exit to open the window.')
+                    usrcmd = input('(login)> ')
                     if usrcmd == 'exit':
                         print('Goodbye!')
                         break

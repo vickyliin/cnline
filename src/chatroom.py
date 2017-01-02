@@ -86,6 +86,7 @@ class LoginManager():
         self.rsock.connect(self.server)
         self.tkroot.protocol('WM_DELETE_WINDOW', self.close)
         self.tkroot.after(0, self.poll)
+        self.tkroot.attributes("-topmost", True)
 
         self.tkroot.mainloop()
 
@@ -206,6 +207,7 @@ class Chatroom:
         
         # open the window
         self.alive = True
+        self.root.attributes("-topmost", True)
 
     def print(self, msg, end='\n'):
         if type(msg) == bytes:
