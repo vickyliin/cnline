@@ -11,7 +11,7 @@
 #include <sys/select.h>
 #include <time.h>
 #include <sys/time.h>
-#define ERR_EXIT(a) { perror(a); exit(1); }
+#define ERR_EXIT(a) { perror(a); exit(0); }
 #define read_lock(fd, offset, whence, len) \
 	            lock_reg((fd), F_SETLK, F_RDLCK, (offset), (whence), (len))
 #define readw_lock(fd, offset, whence, len) \
@@ -159,7 +159,7 @@ static void init_client(char* ip,int port) {
 	if(cnt> timeout * 10 )
 	{
 	    fprintf(stderr,"Connection Timeout!\n");
-	    exit(1);
+	    exit(0);
 	}
 	usleep(100000);
     }

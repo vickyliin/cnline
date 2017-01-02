@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sys/select.h>
-#define ERR_EXIT(a) { perror(a); exit(1); }
+#define ERR_EXIT(a) { perror(a); exit(0); }
 #define read_lock(fd, offset, whence, len) \
 	            lock_reg((fd), F_SETLK, F_RDLCK, (offset), (whence), (len))
 #define readw_lock(fd, offset, whence, len) \
@@ -64,8 +64,8 @@ int main(int argc, char** argv) {
     fd_set readyset;
     if (argc != 3) {
         fprintf(stderr, "usage: %s [port] [filename]\n", argv[0]);
-        exit(1);
-    }
+        exit(0);
+   /}
     init_server((unsigned short) atoi(argv[1]));
     struct timeval slice;
     int cnt=0;
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 	if(cnt>TIMEOUT*10)
 	{
 	    fprintf(stderr,"Connection Timeout!\n");
-	    exit(1);
+	    exit(0);
 	}
         FD_ZERO(&readyset);
         FD_SET(svr.listen_fd,&readyset);
