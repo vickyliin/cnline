@@ -57,9 +57,7 @@ class Connection:
     def __init__(self, sock):
         self.uid = None
         self.username = None
-        self.login = False
         self.last_login = ""
-        self.last_logout = ""
         self.sock = sock
         self.task = None
 
@@ -86,11 +84,18 @@ class DBConnection:
 
     def save_message(self, message, users):
         with self.conn:
-            self.conn.execute('''INSERT INTO messages(src, dest, time, msg)
-                                 VALUES(?, ?, ?, ?)''', (
+            self.conn.execute('''INSERT INTO messages(src, dest, time, msg, read)
+                                 VALUES(?, ?, ?, ?, ?)''', (
                                      *users,
                                      datetime.utcnow().isoformat(' '),
-                                     message
+                                     message,
+                                     0
+                             ))
+    def update_user(self, username):
+        with self.conn:
+            self.conn.execute('''UPDATE users SET last_login = ? WHERE username = ?''', (
+                                    datetime.utcnow().isoformat(' '),
+                                    username
                              ))
 
 def register_handler(conn, server):
@@ -149,13 +154,12 @@ def login_handler(conn, server):
     if sha256((password + config.PASSWORD_SALT).encode()).hexdigest() != user_inf[2]:
         conn.sock.send(REQUEST_FIN + b'Password error!')
         raise StopIteration
-    conn.sock.send(LOGIN_SUCCEED + 
-        bytes( 'Welcome %s, please enter a command.'%username, 'ASCII'))
+    conn.sock.send(LOGIN_SUCCEED + b'Welcome %s, please enter a command.' % username)
     print("User %s logged in." % (username,))
-    conn.login = True
+    server.db.update_user(username)
+    server.login_connections[username] = conn
     conn.username = user_inf[1]
     conn.uid = user_inf[0]
-    server.login_connections[username] = conn
     raise StopIteration
 
 def ls_handler(conn, server):

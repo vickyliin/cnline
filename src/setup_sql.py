@@ -18,5 +18,6 @@ conn.cursor().execute('''CREATE TABLE IF NOT EXISTS messages(
                             dest TEXT NOT NULL,
                             time TEXT NOT NULL,
                             msg TEXT NOT NULL
+                            read INTEGER NOT NULL
                         )''')
 conn.commit()
