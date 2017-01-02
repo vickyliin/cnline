@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-import socket
-import config
-from codes import *
-from os.path import isfile
+from util import *
 
 MAX_RECV_LEN = 4096
 CMDS = {
@@ -19,9 +16,9 @@ def cmd_not_found(cmds):
     return
 
 state_transfer_dict = {
-        LOGIN_SUCCEED : 'login',
-        TALK_SUCCEED : 'talk', 
-        LOGOUT_SUCCEED : 'start', 
+    LOGIN_SUCCEED : 'login',
+    TALK_SUCCEED : 'talk', 
+    LOGOUT_SUCCEED : 'start', 
 }
 
 def state_handler(sock, cmd, init_state):
@@ -74,7 +71,7 @@ if __name__ == '__main__':
                 state = state_handler(sock, usrcmd, state)
 
             elif state == 'login':
-                # TODO create a new socket to recv msg from server
+                manager = ChatroomManager(sock, username)
                 if usrcmd.startswith(cmds[0]):
                     # talk
                     guest = usrcmd[len(cmds[0]):].strip()
