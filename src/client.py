@@ -30,7 +30,7 @@ def state_handler(sock, cmd, init_state):
     server_msg = sock.recv(MAX_RECV_LEN)
     code, msg = server_msg[:1], server_msg[1:]
     while( code != REQUEST_FIN):
-        print('(Server#%d)'%code[0], end=' ')
+        print('(Server#%s)' % code, end=' ')
         print(msg.decode())
         for (condition, state) in state_transfer_dict.items():
             if code == condition:

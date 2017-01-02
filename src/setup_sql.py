@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import sqlite3
+import config
 
-conn = sqlite3.connect("./users.db")
+conn = sqlite3.connect(config.USERS_DB_PATH)
 conn.cursor().execute('''CREATE TABLE IF NOT EXISTS users(
                             id  INTEGER PRIMARY KEY,
                             username TEXT UNIQUE NOT NULL,
