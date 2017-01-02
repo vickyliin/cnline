@@ -1,15 +1,4 @@
-#!/usr/bin/env python
-from codes import *
-import tkinter as tk
-import tkinter.messagebox as tkbox
-import tkinter.filedialog as tkfile
-import socket
-from threading import Thread
-from time import sleep
-from os.path import isfile, basename
-import queue
-
-MAX_RECV_LEN = 4096
+from util import *
 
 def file_recver(port, chatroom, filename):
     # filename for display, need not contain path
@@ -56,8 +45,8 @@ def recv_file(chatroom, filename):
             'because the MAX amount of file receive' +
             ' (%d) had been reached.' % MAX_TRANSFER_AMT
         )
-        chatroom.ssock.send(TRANSFER_DENY)
-        chatroom.ssock.recv(MAX_RECV_LEN)
+        chatroom.send(TRANSFER_DENY)
+        chatroom.recv()
         return
 
     accept = tkbox.askokcancel(
@@ -68,35 +57,35 @@ def recv_file(chatroom, filename):
     if accept == True:
         # send the picked port to server 
         # the server will then pass it to the sender
-        chatroom.ssock.send(TRANSFER_ACCEPT + str(port).encode())
-        chatroom.ssock.recv(MAX_RECV_LEN)
+        chatroom.send(TRANSFER_ACCEPT, port)
+        chatroom.recv()
 
-        chatroom.print('File transfer request ACCEPTED.')
         file_recver(port, chatroom, filename)
     else:
-        chatroom.ssock.send(TRANSFER_DENY)
-        chatroom.ssock.recv(MAX_RECV_LEN)
-        chatroom.print('File transfer request REJECTED.')
+        chatroom.send(TRANSFER_DENY)
+        chatroom.recv()
+        chatroom.print('You just rejected a file from %s.' % chatroom.guest)
 
 def req_file(chatroom):
     # do when click the file button
-    sock = chatroom.ssock
     filename = tkfile.askopenfilename()
     if not filename:
         # user cancel the file browser
         return
-    tkbox.askokcancel(
+    chk = tkbox.askokcancel(
         'File transfer',
         'Do you want to transfer file %s to %s?' % \
             (basename(filename), chatroom.guest)
     )
-    sock.send(TRANSFER_REQUEST + basename(filename).encode())
-    server_msg = sock.recv(MAX_RECV_LEN)
-    if server_msg[:1] == TRANSFER_ACCEPT:
-        addr = server_msg[1:].decode()
-        file_sender(addr, chatroom, filename)
-    else:
-        chatroom.print(server_msg[1:])
+    if chk:
+        chatroom.send(TRANSFER_REQUEST, basename(filename))
+        server_msg = chatroom.recv()
+        code, msg = server_msg[:1], server_msg[1:]
+        if code == TRANSFER_ACCEPT:
+            addr = msg.decode() # ip:port
+            file_sender(addr, chatroom, filename)
+        elif code == TRANSFER_DENY:
+            chatroom.print(server_msg[1:])
     
     return
 
