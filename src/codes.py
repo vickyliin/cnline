@@ -1,3 +1,5 @@
+NULL = bytes([0x00])
+
 ### Client request
 REGISTER_REQUEST = bytes([0x01])
 LOGIN_REQUEST = bytes([0x02])
