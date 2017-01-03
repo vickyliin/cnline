@@ -113,7 +113,7 @@ class DBConnection:
                                      WHERE (src = ? AND dest = ?) OR (src = ? AND dest = ?)
                                      ORDER BY id DESC
                                      LIMIT 0, ?
-                                ) ORDER BY ID ASC'''
+                                ) ORDER BY id ASC'''
                              (src, dest, dest, src, num))
             result = self.cur.fetchall()
         return result
