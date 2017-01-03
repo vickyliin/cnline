@@ -3,7 +3,7 @@
 import sqlite3
 import os
 import socket
-import select
+import selectors
 from hashlib import sha256
 from datetime import datetime
 from codes import *
@@ -17,32 +17,32 @@ def utcnow_iso():
     
 class Server:
     def __init__(self):
-        self.connections = {}
         self.login_connections = {}
+        self.connections = {}
 
     def start(self, port):
         self.db = DBConnection()
-        with socket.socket() as svr_sock, select.epoll() as epoll:
+        with socket.socket() as svr_sock, selectors.DefaultSelector() as sel:
             try:
-                # bind the socket and register to epoll object
-                srv_sock.bind(("0.0.0.0", port))
+                # bind the socket and register to selector object
+                svr_sock.bind(("0.0.0.0", port))
                 svr_sock.listen(5)
                 print("socket created : " + str(svr_sock))
-                epoll.register(svr_sock.fileno(), select.EPOLLIN)
+                sel.register(svr_sock, selectors.EVENT_READ)
 
                 while True:
-                    for fd, event in epoll.poll():
-                        # accept new connections, register to epoll
-                        if fd == svr_sock.fileno():
+                    for key, event in sel.select():
+                        # accept new connections, register to selector
+                        if key.fd == svr_sock.fileno():
                             connsock, _ = svr_sock.accept()
                             print("accept new connetion : " + str(connsock))
-                            epoll.register(connsock.fileno(), select.EPOLLIN)
+                            sel.register(connsock, selectors.EVENT_READ)
                             # Create connection object, store into dict
                             conn = Connection(connsock)
-                            self.connections[conn.sock.fileno()] = conn
-                        # handle other requests
-                        elif event & select.EPOLLIN:
-                            conn = self.connections[fd]
+                            self.connections[connsock.fileno()] = conn
+                        # handle other request
+                        elif event & selectors.EVENT_READ:
+                            conn = self.connections[key.fd]
                             try:
                                 handle_request(conn, self)
                             # remote socket closed
