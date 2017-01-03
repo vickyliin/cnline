@@ -104,6 +104,20 @@ class DBConnection:
                                  VALUES(?, ?, ?, ?, ?)''', (
                                      *users, utcnow_iso(), message, 0
                              ))
+    
+    def query_messages(self, src, dest, num):
+        with self.conn:
+            self.cur = self.conn.cursor()
+            self.cur.execute('''SELECT * FROM (
+                                    SELECT * FROM messages
+                                     WHERE (src = ? AND dest = ?) OR (src = ? AND dest = ?)
+                                     ORDER BY id DESC
+                                     LIMIT 0, ?
+                                ) ORDER BY ID ASC'''
+                             (src, dest, dest, src, num))
+            result = self.cur.fetchall()
+        return result
+
     def update_user(self, username):
         with self.conn:
             self.conn.execute('''UPDATE users SET last_login = ? WHERE username = ?''', (
