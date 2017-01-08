@@ -26,8 +26,9 @@ def handler(sock, print=thprint):
             print('IP %s connect' % peer)
             i,j = 0,0
             leave = False
+            msg = connsock.recv(4096)
             while(True):
-                msg = connsock.recv(4096)
+                sleep(1)
                 if msg == b'':
                     print('No msg, client may leave')
                     connsock.close()
@@ -66,9 +67,6 @@ def handler(sock, print=thprint):
                     # no new msg
                     else:
                         connsock.send(REQUEST_FIN)
-                elif code == LEAVE_REQUEST:
-                    leave = True
-                    connsock.send(REQUEST_FIN)
                 else:
                     connsock.send(REQUEST_FIN)
         except ConnectionResetError:

@@ -42,6 +42,8 @@ class LoginManager():
         self.server = sock.getpeername()
         self.sock = sock
 
+        self.selector = DefaultSelector()
+
     def send(self, code, msg=b''):
         if type(msg) != bytes:
             msg = ('%s' % msg).encode()
@@ -84,6 +86,9 @@ class LoginManager():
 
         self.rsock = socket.socket()
         self.rsock.connect(self.server)
+        self.rsock.send(POLL_REQUEST)
+        self.selector.register(self.rsock, EVENT_READ)
+
         self.tkroot.protocol('WM_DELETE_WINDOW', self.close)
         self.tkroot.after(0, self.poll)
         self.tkroot.attributes("-topmost", True)
@@ -94,49 +99,50 @@ class LoginManager():
         # create a new socket to poll talk request from another user
         # a new socket is created to avoid sync receiving problem
         sock = self.rsock
-        try:
-            sock.send(POLL_REQUEST + self.username.encode())
-            server_msg = sock.recv(MAX_RECV_LEN)
-        except OSError:
-            return
-        code, msg = server_msg[:1], server_msg[1:]
+        events = self.selector.select()
+        for event in events:
+            try:
+                server_msg = sock.recv(MAX_RECV_LEN)
+            except OSError:
+                return
+            code, msg = server_msg[:1], server_msg[1:]
 
-        if code == REQUEST_FIN:
-            self.tkroot.after(1000, self.poll)
-            return
+            if code == REQUEST_FIN:
+                self.tkroot.after(0, self.poll)
+                return
 
-        guest, msg = msg.decode().split('\n')
+            guest, msg = msg.decode().split('\n')
 
-        try:
-            chatroom = self.chatrooms[guest]
-            new_chatroom = False
-        except KeyError:
-            # build a new chatroom and start
-            new_chatroom = True
-            self.build(guest)
-            chatroom = self.chatrooms[guest]
-            chatroom.root.after(1000, self.poll)
+            try:
+                chatroom = self.chatrooms[guest]
+                new_chatroom = False
+            except KeyError:
+                # build a new chatroom and start
+                new_chatroom = True
+                self.build(guest)
+                chatroom = self.chatrooms[guest]
+                chatroom.root.after(0, self.poll)
 
-        if not chatroom.alive:
-            new_chatroom = True
-            self.build(guest)
-            chatroom = self.chatrooms[guest]
-            chatroom.root.after(1000, self.poll)
+            if not chatroom.alive:
+                new_chatroom = True
+                self.build(guest)
+                chatroom = self.chatrooms[guest]
+                chatroom.root.after(0, self.poll)
 
-        if code == MSG_REQUEST:
-            # print on the corresponding chatroom
-            chatroom.print('[%s]: %s' % (guest,msg))
+            if code == MSG_REQUEST:
+                # print on the corresponding chatroom
+                chatroom.print('[%s]: %s' % (guest,msg))
 
-        elif code == TRANSFER_REQUEST:
-            # create a thread to recv file
-            filename = msg
-            thpack(recv_file, chatroom, filename)()
+            elif code == TRANSFER_REQUEST:
+                # create a thread to recv file
+                filename = msg
+                thpack(recv_file, chatroom, filename)()
 
 
-        if new_chatroom:
-            chatroom.root.mainloop()
-        if self.alive:
-            self.tkroot.after(1000, self.poll)
+            if new_chatroom:
+                chatroom.root.mainloop()
+            if self.alive:
+                self.tkroot.after(0, self.poll)
 
     def build(self, guest):
         self.chatroom_lock.acquire()
