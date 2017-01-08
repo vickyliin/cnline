@@ -176,7 +176,7 @@ class Chatroom:
         self.guest = guest
 
         self.root = tk.Toplevel(root)
-        self.root.title(guest)
+        self.root.title('To: '+guest+' / '+host)
         self.alive = False
         self.fileports = fileports
         self.lock = lock
