@@ -76,6 +76,12 @@ class Connection:
     def msgsend(self, msg):
         self.rsock.send(MSG_REQUEST + msg.encode() + REQUEST_FIN)
 
+    def filesend(self, filename):
+        self.rsock.send(TRANSFER_REQUEST + filename.encode())
+
+    def filedeny(self):
+        self.rsock.send(TRANSFER_DENY + "Guest isn't online.".encode())
+
     def set_info(self, user_inf):
         self.uid = user_inf[0]
         self.username = user_inf[1]
@@ -242,6 +248,21 @@ def rsock_init(conn, server):
     server.db.update_unread(username)
     raise StopIteration
 
+def history_handler(conn, server):
+    if False:
+        yield
+    # TODO : query message from db
+    raise StopIteration
+
+def transfer_handler(conn, server):
+    if False:
+        yield
+    dst, filename = conn.buf.split('\n')
+    print(dst, filename)
+    conn.filedeny()
+
+    raise StopIteration
+
 REQUEST_HANDLERS = {
     REGISTER_REQUEST : register_handler,
     LOGIN_REQUEST : login_handler,
@@ -250,6 +271,8 @@ REQUEST_HANDLERS = {
     LOGOUT_REQUEST : logout_handler,
     MSG_REQUEST : message_handler,
     RSOCK_INIT : rsock_init,
+    HISTORY_REQUEST : history_handler,
+    TRANSFER_REQUEST : transfer_handler,
 }
 
 def handle_request(conn, server):

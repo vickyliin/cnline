@@ -7,6 +7,7 @@ LIST_REQUEST = bytes([0x03])
 DISCON_REQUEST = bytes([0x04])
 LOGOUT_REQUEST = bytes([0x05])
 RSOCK_INIT = bytes([0x07])
+HISTORY_REQUEST = bytes([0x08])
 
 ### Server response
 REQUEST_FIN = bytes([0x01])

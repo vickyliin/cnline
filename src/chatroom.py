@@ -105,8 +105,8 @@ class LoginManager():
                 server_msg = sock.recv(MAX_RECV_LEN)
             except OSError:
                 return
+
             for msg in server_msg.split(REQUEST_FIN)[:-1]:
-                
                 code, msg = msg[:1], msg[1:]
 
 #                if code == REQUEST_FIN:
@@ -138,7 +138,6 @@ class LoginManager():
                     # create a thread to recv file
                     filename = msg
                     thpack(recv_file, chatroom, filename)()
-
 
             if new_chatroom:
                 chatroom.root.mainloop()
