@@ -31,7 +31,7 @@ class Server:
                 sel.register(svr_sock, selectors.EVENT_READ)
 
                 while True:
-                    for key, event in sel.select(0):
+                    for key, event in sel.select():
                         # accept new connections, register to selector
                         if key.fd == svr_sock.fileno():
                             connsock, _ = svr_sock.accept()
@@ -73,8 +73,8 @@ class Connection:
     def send(self, code, msg):
         self.sock.send(code + msg.encode())
 
-    def rsend(self, code, msg):
-        self.rsock.send(code + msg.encode())
+    def msgsend(self, msg):
+        self.rsock.send(MSG_REQUEST + msg.encode() + REQUEST_FIN)
 
     def set_info(self, user_inf):
         self.uid = user_inf[0]
@@ -102,7 +102,7 @@ class DBConnection:
     def close(self):
         self.conn.close()
 
-    def save_message(self, message, users):
+    def save_message(self, users, message, sent):
         with self.conn:
             self.conn.execute('''INSERT INTO messages(src, dest, time, msg, read)
                                  VALUES(?, ?, ?, ?, ?)''', (
@@ -117,7 +117,7 @@ class DBConnection:
                                      WHERE (src = ? AND dest = ?) OR (src = ? AND dest = ?)
                                      ORDER BY id DESC
                                      LIMIT 0, ?
-                                ) ORDER BY id ASC'''
+                                ) ORDER BY id ASC''',
                              (src, dest, dest, src, num))
             result = self.cur.fetchall()
         return result
@@ -127,6 +127,17 @@ class DBConnection:
             self.conn.execute('''UPDATE users SET last_login = ? WHERE username = ?''', (
                                     utcnow_iso(), username
                              ))
+
+    def query_unread(self, username):
+        with self.conn:
+            self.cur = self.conn.cursor()
+            self.cur.execute('''SELECT * FROM messages WHERE dest = ? AND read = 0''', (username, ))
+            result = self.cur.fetchall()
+        return result
+
+    def update_unread(self, username):
+        with self.conn:
+            self.conn.execute('''UPDATE messages SET read = 1 WHERE dest = ?''', (username,))
 
 def register_handler(conn, server):
     while True:
@@ -212,17 +223,23 @@ def message_handler(conn, server):
 
     sent = 0
     if dest in server.login_connections:
-        server.login_connections[dest].rsend(MSG_REQUEST, src + '\n' + msg)
-        print("message sent to fd " + str(server.login_connections[dest].rsock.fileno()))
+        server.login_connections[dest].msgsend(src + '\n' + msg)
         sent = 1
+
+    server.db.save_message((src, dest), msg, sent)
     raise StopIteration
 
 def rsock_init(conn, server):
     if False:
         yield
-    msg = conn.buf
-    print("Rsock init for " + str(msg))
-    server.login_connections[msg].rsock = conn.sock
+    username = conn.buf
+    server.login_connections[username].rsock = conn.sock
+
+    # check unread messages
+    unread = server.db.query_unread(username)
+    for row in unread:
+        print(row[1], row[4])
+        server.login_connections[username].msgsend(row[1] + '\n' + row[4])
     raise StopIteration
 
 REQUEST_HANDLERS = {

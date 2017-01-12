@@ -105,44 +105,47 @@ class LoginManager():
                 server_msg = sock.recv(MAX_RECV_LEN)
             except OSError:
                 return
-            code, msg = server_msg[:1], server_msg[1:]
+            for msg in server_msg.split(REQUEST_FIN)[:-1]:
+                
+                print(msg)
+                code, msg = msg[:1], msg[1:]
 
-            if code == REQUEST_FIN:
-                self.tkroot.after(1, self.poll)
-                return
+#                if code == REQUEST_FIN:
+#                    self.tkroot.after(1, self.poll)
+#                    return
+                guest, msg = msg.decode().split('\n')
 
-            guest, msg = msg.decode().split('\n')
+                try:
+                    chatroom = self.chatrooms[guest]
+                    new_chatroom = False
+                except KeyError:
+                    # build a new chatroom and start
+                    new_chatroom = True
+                    self.build(guest)
+                    chatroom = self.chatrooms[guest]
+#                    chatroom.root.after(1, self.poll)
 
-            try:
-                chatroom = self.chatrooms[guest]
-                new_chatroom = False
-            except KeyError:
-                # build a new chatroom and start
-                new_chatroom = True
-                self.build(guest)
-                chatroom = self.chatrooms[guest]
-                chatroom.root.after(1, self.poll)
+                if not chatroom.alive:
+                    new_chatroom = True
+                    self.build(guest)
+                    chatroom = self.chatrooms[guest]
+#                    chatroom.root.after(1, self.poll)
 
-            if not chatroom.alive:
-                new_chatroom = True
-                self.build(guest)
-                chatroom = self.chatrooms[guest]
-                chatroom.root.after(1, self.poll)
+                if code == MSG_REQUEST:
+                    # print on the corresponding chatroom
+                    chatroom.print('[%s]: %s' % (guest,msg))
 
-            if code == MSG_REQUEST:
-                # print on the corresponding chatroom
-                chatroom.print('[%s]: %s' % (guest,msg))
-
-            elif code == TRANSFER_REQUEST:
-                # create a thread to recv file
-                filename = msg
-                thpack(recv_file, chatroom, filename)()
+                elif code == TRANSFER_REQUEST:
+                    # create a thread to recv file
+                    filename = msg
+                    thpack(recv_file, chatroom, filename)()
 
 
             if new_chatroom:
+                print("Creating new chatroom")
                 chatroom.root.mainloop()
-            if self.alive:
-                self.tkroot.after(1, self.poll)
+#                if self.alive:
+#                    self.tkroot.after(1, self.poll)
         self.tkroot.after(1, self.poll)
 
     def build(self, guest):
