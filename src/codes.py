@@ -6,7 +6,7 @@ LOGIN_REQUEST = bytes([0x02])
 LIST_REQUEST = bytes([0x03])
 DISCON_REQUEST = bytes([0x04])
 LOGOUT_REQUEST = bytes([0x05])
-POLL_REQUEST = bytes([0x07])
+RSOCK_INIT = bytes([0x07])
 
 ### Server response
 REQUEST_FIN = bytes([0x01])

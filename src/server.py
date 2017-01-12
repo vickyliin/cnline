@@ -31,7 +31,7 @@ class Server:
                 sel.register(svr_sock, selectors.EVENT_READ)
 
                 while True:
-                    for key, event in sel.select():
+                    for key, event in sel.select(0):
                         # accept new connections, register to selector
                         if key.fd == svr_sock.fileno():
                             connsock, _ = svr_sock.accept()
@@ -51,6 +51,7 @@ class Server:
                                 if conn.username in self.login_connections:
                                     del self.login_connections[conn.username]
                                 del self.connections[conn.sock.fileno()]
+                                sel.unregister(conn.sock)
                                 conn.sock.close()
             except KeyboardInterrupt:
                 svr_sock.close()
@@ -71,6 +72,9 @@ class Connection:
 
     def send(self, code, msg):
         self.sock.send(code + msg.encode())
+
+    def rsend(self, code, msg):
+        self.rsock.send(code + msg.encode())
 
     def set_info(self, user_inf):
         self.uid = user_inf[0]
@@ -208,8 +212,17 @@ def message_handler(conn, server):
 
     sent = 0
     if dest in server.login_connections:
-        server.login_connections[dest].send(MSG_REQUEST, src + '\n' + msg)
+        server.login_connections[dest].rsend(MSG_REQUEST, src + '\n' + msg)
+        print("message sent to fd " + str(server.login_connections[dest].rsock.fileno()))
         sent = 1
+    raise StopIteration
+
+def rsock_init(conn, server):
+    if False:
+        yield
+    msg = conn.buf
+    print("Rsock init for " + str(msg))
+    server.login_connections[msg].rsock = conn.sock
     raise StopIteration
 
 REQUEST_HANDLERS = {
@@ -219,6 +232,7 @@ REQUEST_HANDLERS = {
     DISCON_REQUEST : None,
     LOGOUT_REQUEST : logout_handler,
     MSG_REQUEST : message_handler,
+    RSOCK_INIT : rsock_init,
 }
 
 def handle_request(conn, server):

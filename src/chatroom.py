@@ -86,7 +86,7 @@ class LoginManager():
 
         self.rsock = socket.socket()
         self.rsock.connect(self.server)
-        self.rsock.send(POLL_REQUEST)
+        self.rsock.send(RSOCK_INIT + self.username.encode())
         self.selector.register(self.rsock, EVENT_READ)
 
         self.tkroot.protocol('WM_DELETE_WINDOW', self.close)
@@ -98,9 +98,9 @@ class LoginManager():
     def poll(self):
         # create a new socket to poll talk request from another user
         # a new socket is created to avoid sync receiving problem
-        sock = self.rsock
-        events = self.selector.select()
-        for event in events:
+        events = self.selector.select(0)
+        for key, mask in events:
+            sock = key.fileobj
             try:
                 server_msg = sock.recv(MAX_RECV_LEN)
             except OSError:
@@ -108,7 +108,7 @@ class LoginManager():
             code, msg = server_msg[:1], server_msg[1:]
 
             if code == REQUEST_FIN:
-                self.tkroot.after(0, self.poll)
+                self.tkroot.after(1, self.poll)
                 return
 
             guest, msg = msg.decode().split('\n')
@@ -121,13 +121,13 @@ class LoginManager():
                 new_chatroom = True
                 self.build(guest)
                 chatroom = self.chatrooms[guest]
-                chatroom.root.after(0, self.poll)
+                chatroom.root.after(1, self.poll)
 
             if not chatroom.alive:
                 new_chatroom = True
                 self.build(guest)
                 chatroom = self.chatrooms[guest]
-                chatroom.root.after(0, self.poll)
+                chatroom.root.after(1, self.poll)
 
             if code == MSG_REQUEST:
                 # print on the corresponding chatroom
@@ -142,7 +142,8 @@ class LoginManager():
             if new_chatroom:
                 chatroom.root.mainloop()
             if self.alive:
-                self.tkroot.after(0, self.poll)
+                self.tkroot.after(1, self.poll)
+        self.tkroot.after(1, self.poll)
 
     def build(self, guest):
         self.chatroom_lock.acquire()
