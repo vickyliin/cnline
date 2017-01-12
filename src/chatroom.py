@@ -107,7 +107,6 @@ class LoginManager():
                 return
             for msg in server_msg.split(REQUEST_FIN)[:-1]:
                 
-                print(msg)
                 code, msg = msg[:1], msg[1:]
 
 #                if code == REQUEST_FIN:
@@ -142,7 +141,6 @@ class LoginManager():
 
 
             if new_chatroom:
-                print("Creating new chatroom")
                 chatroom.root.mainloop()
 #                if self.alive:
 #                    self.tkroot.after(1, self.poll)

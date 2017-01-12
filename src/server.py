@@ -238,8 +238,8 @@ def rsock_init(conn, server):
     # check unread messages
     unread = server.db.query_unread(username)
     for row in unread:
-        print(row[1], row[4])
         server.login_connections[username].msgsend(row[1] + '\n' + row[4])
+    server.db.update_unread(username)
     raise StopIteration
 
 REQUEST_HANDLERS = {
