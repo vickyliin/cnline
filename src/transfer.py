@@ -39,7 +39,9 @@ def recv_file(chatroom, filename):
     chatroom.root.protocol("WM_DELETE_WINDOW", lambda x=1: x)
     sender = chatroom.guest
     try:
+        chatroom.print('Try to get port from queue')
         port = chatroom.fileports.get()
+        chatroom.print('Port got!')
     except queue.Empty:
         chatroom.print(
             'You miss a file %s from %s ' % (filename,sender) +
@@ -58,12 +60,12 @@ def recv_file(chatroom, filename):
     if accept == True:
         # send the picked port to server 
         # the server will then pass it to the sender
-        chatroom.send(TRANSFER_ACCEPT, port)
+        chatroom.send(TRANSFER_ACCEPT, chatroom.guest + '\n' + str(port))
         chatroom.recv()
 
         file_recver(port, chatroom, filename)
     else:
-        chatroom.send(TRANSFER_DENY)
+        chatroom.send(TRANSFER_DENY, chatroom.guest)
         chatroom.recv()
         chatroom.print('You just rejected a file from %s.' % chatroom.guest)
     chatroom.root.protocol("WM_DELETE_WINDOW", chatroom.close)

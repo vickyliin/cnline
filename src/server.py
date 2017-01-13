@@ -66,6 +66,7 @@ class Connection:
         self.sock = sock
         self.task = None
         self.buf = b""
+        self.transfer_list = []
 
     def recv(self):
         self.buf = self.sock.recv(4096)
@@ -76,11 +77,11 @@ class Connection:
     def msgsend(self, msg):
         self.rsock.send(MSG_REQUEST + msg.encode() + REQUEST_FIN)
 
-    def filesend(self, filename):
-        self.rsock.send(TRANSFER_REQUEST + filename.encode())
+    def filesend(self, guest, filename):
+        self.rsock.send(TRANSFER_REQUEST + (guest + '\n' + filename).encode() + REQUEST_FIN)
 
-    def filedeny(self):
-        self.sock.send(TRANSFER_DENY + "Guest isn't online.".encode())
+    def filedeny(self, msg):
+        self.sock.send(TRANSFER_DENY + msg.encode())
 
     def set_info(self, user_inf):
         self.uid = user_inf[0]
@@ -258,9 +259,25 @@ def transfer_handler(conn, server):
     if False:
         yield
     dst, filename = conn.buf.split('\n')
-    print(dst, filename)
-    conn.filedeny()
+    if not dst in server.login_connections:
+        conn.filedeny("Peer isn't online.")
+        raise StopIteration
 
+    server.login_connections[dst].filesend(conn.username, filename)
+    raise StopIteration
+
+def transfer_accept(conn, server):
+    if False:
+        yield
+    src, port = conn.buf.split('\n')
+
+
+def transfer_deny(conn, server):
+    if False:
+        yield
+    src = conn.buf
+    if src in server.login_connections:
+        server.login_connections[src].filedeny("Request denied by peer.")
     raise StopIteration
 
 REQUEST_HANDLERS = {
@@ -273,6 +290,8 @@ REQUEST_HANDLERS = {
     RSOCK_INIT : rsock_init,
     HISTORY_REQUEST : history_handler,
     TRANSFER_REQUEST : transfer_handler,
+    TRANSFER_ACCEPT : transfer_accept,
+    TRANSFER_DENY : transfer_deny,
 }
 
 def handle_request(conn, server):
@@ -284,14 +303,12 @@ def handle_request(conn, server):
         raise socket.error
 
     if conn.task == None:
-        print("Creating new task")
         request_type, conn.buf = conn.buf[:1], conn.buf[1:]
         try:
             conn.task = REQUEST_HANDLERS[request_type](conn, server)
         except KeyError:
             conn.send(REQUEST_FIN, 'Unestablished function.')
     conn.buf = conn.buf.decode("UTF-8")
-    print("Resuming Task with buf = " + str(conn.buf))
     try:
         if conn.task != None:
             next(conn.task)
