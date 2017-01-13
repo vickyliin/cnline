@@ -131,6 +131,7 @@ int main(int argc, char** argv) {
     char tmp;
     while(read(fd,&tmp,sizeof(char))!=0)checksum=checksum^tmp;
     if(checksum!=0)return 0;
+    write(cli.fd,&checksum,sizeof(char));
     close(fd);
     close(cli.fd);
     return 1;

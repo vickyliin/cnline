@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     if (argc != 3) {
         fprintf(stderr, "usage: %s [port] [filename]\n", argv[0]);
         exit(0);
-   /}
+    }
     init_server((unsigned short) atoi(argv[1]));
     struct timeval slice;
     int cnt=0;
@@ -101,6 +101,12 @@ int main(int argc, char** argv) {
     char tmp;
     while(read(fd,&tmp,sizeof(char))!=0)checksum=checksum^tmp;
     write(cli.fd,&checksum,sizeof(char));
+    read(cli.fd,&checksum,sizeof(char));
+    if(checksum!=0)
+    {
+	remove(argv[2]);
+	return 0;
+    }
     close(fd);
     close(cli.fd);
     return 1;
