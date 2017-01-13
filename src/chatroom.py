@@ -111,7 +111,7 @@ class LoginManager():
                 code, msg = msg[:1], msg[1:]
 
                 msg = msg.decode().split('\n')
-                guest, msg = raw_msg[0], raw_msg[1]
+                guest = msg[0]
 
                 try:
                     chatroom = self.chatrooms[guest]
@@ -128,15 +128,16 @@ class LoginManager():
                     chatroom = self.chatrooms[guest]
 
                 if code == MSG_REQUEST:
+                    msg = msg[1]
                     # print on the corresponding chatroom
                     chatroom.print('[%s]: %s' % (guest,msg))
 
                 elif code == HISTORY_REQUEST:
-                    source, msg = raw_msg[1], raw_msg[2]
+                    source, msg = msg[1], msg[2]
                     if not self.history:
                         chatroom.print('-'*10+' History '+'-'*10)
                         self.history = True
-                    chatroom.print('[%s]: %s' % (guest,msg))
+                    chatroom.print('[%s]: %s' % (source,msg))
 
                 elif code == HISTORY_END:
                     chatroom.print('-'*10+' History '+'-'*10)
@@ -144,7 +145,7 @@ class LoginManager():
 
                 elif code == TRANSFER_REQUEST:
                     # create a thread to recv file
-                    filename = msg
+                    filename = msg[1]
                     thpack(recv_file, chatroom, filename)()
 
             if new_chatroom:
