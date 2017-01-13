@@ -77,8 +77,12 @@ class Connection:
     def msgsend(self, msg):
         self.rsock.send(MSG_REQUEST + msg.encode() + REQUEST_FIN)
 
-    def histsend(self, guest, msg):
-        self.rsock.send(HISTORY_REQUEST + (guest + '\n' + msg).encode() + REQUEST_FIN)
+    def histsend(self, guest, msg='', end=False):
+        if not end:
+            self.rsock.send(HISTORY_REQUEST + (guest + '\n' + msg).encode() + REQUEST_FIN)
+        else:
+            self.rsock.send(HISTORY_END + (guest + '\n').encode() + REQUEST_FIN)
+
 
     def filesend(self, guest, filename):
         self.rsock.send(TRANSFER_REQUEST + (guest + '\n' + filename).encode() + REQUEST_FIN)
@@ -256,8 +260,8 @@ def history_handler(conn, server):
     dst, count = conn.buf.split('\n')
     result = server.db.query_messages(conn.username, dst, int(count))
     for row in result:
-        conn.histsend(dst, row[4])
-    conn.rsock.send(HISTORY_END)
+        conn.histsend(dst, msg=row[4])
+    conn.histsend(dst, end=True)
     raise StopIteration
 
 def transfer_handler(conn, server):
