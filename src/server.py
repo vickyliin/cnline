@@ -163,22 +163,28 @@ def register_handler(conn, server):
         # check if username already in use.
         if server.db.fetch_user(username) == None:
             break
-        conn.send(NULL, "Sorry, this username is already used, please try with another.\n")
+        conn.send(NULL, "Sorry, this username is already used, please try with another.")
 
     while True:
         # ask for password
-        conn.send(NULL, "Please enter you password:")
+        conn.send(NULL, "Please enter you password, or /cancel to cancel:")
         yield
 
         password = conn.buf
+        if password == "/cancel":
+            conn.send(REQUEST_FIN, 'Request canceled.')
+            raise StopIteration
         # confirm password
-        conn.send(NULL, "Please enter you password again:")
+        conn.send(NULL, "Please enter you password again, or /cancel to cancel:")
         yield
 
         password_2 = conn.buf
+        if password_2 == "/cancel":
+            conn.send(REQUEST_FIN, 'Request canceled.')
+            raise StopIteration
         if password == password_2:
             break
-        conn.send(NULL, "Two password doesn't match!!\n")
+        conn.send(NULL, "Two password doesn't match!! Please retry again, or enter /cancel to cancel")
 
     print("%s, %s" % (username, password))
     server.db.register(username, password)
