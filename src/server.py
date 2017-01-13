@@ -80,7 +80,7 @@ class Connection:
         self.rsock.send(TRANSFER_REQUEST + filename.encode())
 
     def filedeny(self):
-        self.rsock.send(TRANSFER_DENY + "Guest isn't online.".encode())
+        self.sock.send(TRANSFER_DENY + "Guest isn't online.".encode())
 
     def set_info(self, user_inf):
         self.uid = user_inf[0]
