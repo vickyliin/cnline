@@ -39,7 +39,9 @@ def recv_file(chatroom, filename):
     chatroom.root.protocol("WM_DELETE_WINDOW", lambda x=1: x)
     sender = chatroom.guest
     try:
+        chatroom.print('Try to get port from queue')
         port = chatroom.fileports.get()
+        chatroom.print('Port got!')
     except queue.Empty:
         chatroom.print(
             'You miss a file %s from %s ' % (filename,sender) +

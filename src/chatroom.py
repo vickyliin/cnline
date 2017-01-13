@@ -109,9 +109,6 @@ class LoginManager():
             for msg in server_msg.split(REQUEST_FIN)[:-1]:
                 code, msg = msg[:1], msg[1:]
 
-                if code == REQUEST_FIN:
-                    self.tkroot.after(1, self.poll)
-                    return
                 guest, msg = msg.decode().split('\n')
 
                 try:
@@ -122,13 +119,11 @@ class LoginManager():
                     new_chatroom = True
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
-                    chatroom.root.after(1, self.poll)
 
                 if not chatroom.alive:
                     new_chatroom = True
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
-                    chatroom.root.after(1, self.poll)
 
                 if code == MSG_REQUEST:
                     # print on the corresponding chatroom
@@ -141,9 +136,10 @@ class LoginManager():
 
             if new_chatroom:
                 chatroom.root.mainloop()
-                if self.alive:
-                    self.tkroot.after(1, self.poll)
-        self.tkroot.after(1, self.poll)
+
+        if self.alive:
+            self.tkroot.after(1, self.poll)
+
 
     def build(self, guest):
         self.chatroom_lock.acquire()
