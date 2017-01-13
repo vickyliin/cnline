@@ -21,6 +21,7 @@ class LoginManager():
         self.tkroot = tk.Tk()
         self.login = True
         self.history = False
+        self.after = None
 
         self.tkroot.title('CNLine / %s' % username)
 
@@ -149,7 +150,7 @@ class LoginManager():
                     thpack(recv_file, chatroom, filename)()
 
             if new_chatroom:
-                chatroom.root.after(1, self.poll)
+                chatroom.after = chatroom.root.after(1, self.poll)
                 chatroom.root.mainloop()
                 if chatroom.alive:
                     print('Chatroom to %s is still alive as being closed.'% chatroom.guest)
@@ -157,7 +158,7 @@ class LoginManager():
                     print('Chatroom to %s is not alive, corroctly closed.'% chatroom.guest)
 
         if self.alive:
-            self.tkroot.after(1, self.poll)
+            self.after = self.tkroot.after(1, self.poll)
 
 
     def build(self, guest):
@@ -177,6 +178,8 @@ class LoginManager():
 
     def close(self):
         self.tkroot.destroy()
+        if self.after:
+            self.tkroot.after_cancel(self.after)
         self.chatroom_lock.acquire()
         for (guest, chatroom) in self.chatrooms.items():
             if chatroom.alive:
@@ -196,6 +199,7 @@ class Chatroom:
         self.alive = False
         self.fileports = fileports
         self.lock = lock
+        self.after = None
 
         # add elements in the window
         self.chatbox = tk.Text(self.root)
@@ -256,6 +260,8 @@ class Chatroom:
         self.alive = False 
         self.root.destroy()
         self.lock.release()
+        if self.after:
+            self.root.after_cancel(self.after)
 
 def send_msg(chatroom):
     # do when press enter in the msgbar:
