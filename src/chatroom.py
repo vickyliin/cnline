@@ -21,7 +21,7 @@ class LoginManager():
         self.tkroot = tk.Tk()
         self.login = True
 
-        self.tkroot.title('CNLine')
+        self.tkroot.title('CNLine / %s' % username)
 
         self.elements = []
         button_text = ['Online Users', 'New Chatroom', 'Logout']
@@ -124,10 +124,20 @@ class LoginManager():
                     new_chatroom = True
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
+                    history = False
 
                 if code == MSG_REQUEST:
                     # print on the corresponding chatroom
                     chatroom.print('[%s]: %s' % (guest,msg))
+                    if history:
+                        chatroom.print('-'*10+' History '+'-'*10)
+                        history = False
+
+                elif code == HISTORY_REQUEST:
+                    chatroom.print('[%s]: %s' % (guest,msg))
+                    if not history:
+                        chatroom.print('-'*10+' History '+'-'*10)
+                        history = True
 
                 elif code == TRANSFER_REQUEST:
                     # create a thread to recv file
@@ -136,6 +146,10 @@ class LoginManager():
 
             if new_chatroom:
                 chatroom.root.mainloop()
+                if chatroom.alive:
+                    print('Chatroom to %s is still alive as being closed.'% chatroom.guest)
+                else:
+                    print('Chatroom to %s is not alive, corroctly closed.'% chatroom.guest)
 
         if self.alive:
             self.tkroot.after(1, self.poll)

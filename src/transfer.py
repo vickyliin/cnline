@@ -84,15 +84,13 @@ def req_file(chatroom):
     )
     if chk:
         chatroom.send(TRANSFER_REQUEST, basename(filename))
-        print("receiving")
         server_msg = chatroom.recv()
         code, msg = server_msg[:1], server_msg[1:]
-        print("server response :" + str(server_msg))
         if code == TRANSFER_ACCEPT:
             addr = msg.decode() # ip:port
             file_sender(addr, chatroom, filename)
         elif code == TRANSFER_DENY:
-            chatroom.print(server_msg[1:])
+            chatroom.print('The file transfer request is denied by %s' % chatroom.guest)
     chatroom.root.protocol("WM_DELETE_WINDOW", chatroom.close)
     return
 
