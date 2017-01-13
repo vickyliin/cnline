@@ -77,11 +77,11 @@ class Connection:
     def msgsend(self, msg):
         self.rsock.send(MSG_REQUEST + msg.encode() + REQUEST_FIN)
 
-    def histsend(self, guest, msg='', end=False):
+    def histsend(self, dst, user, msg='', end=False):
         if not end:
-            self.rsock.send(HISTORY_REQUEST + (guest + '\n' + msg).encode() + REQUEST_FIN)
+            self.rsock.send(HISTORY_REQUEST + (dst + '\n' + user + '\n' + msg).encode() + REQUEST_FIN)
         else:
-            self.rsock.send(HISTORY_END + (guest + '\n').encode() + REQUEST_FIN)
+            self.rsock.send(HISTORY_END + (dst + '\n' + user + '\n').encode() + REQUEST_FIN)
 
 
     def filesend(self, guest, filename):
@@ -234,9 +234,11 @@ def message_handler(conn, server):
 
     sent = 0
     if dest in server.login_connections:
+        print("delivering message to %s" % dest)
         server.login_connections[dest].msgsend(src + '\n' + msg)
         sent = 1
 
+    print("saving message to database")
     server.db.save_message((src, dest), msg, sent)
     raise StopIteration
 
@@ -260,7 +262,7 @@ def history_handler(conn, server):
     dst, count = conn.buf.split('\n')
     result = server.db.query_messages(conn.username, dst, int(count))
     for row in result:
-        conn.histsend(dst, msg=row[4])
+        conn.histsend(dst, row[1], msg=row[4])
     conn.histsend(dst, end=True)
     raise StopIteration
 
