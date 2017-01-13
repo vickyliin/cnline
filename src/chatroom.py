@@ -135,6 +135,7 @@ class LoginManager():
                         chatroom.print('-'*10+' History '+'-'*10)
                         self.history = True
                     chatroom.print('[%s]: %s' % (guest,msg))
+
                 elif code == HISTORY_END:
                     chatroom.print('-'*10+' History '+'-'*10)
                     self.history = False
