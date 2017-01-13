@@ -8,7 +8,7 @@ from time import sleep
 from os.path import isfile, basename
 import queue
 from selectors import DefaultSelector, EVENT_READ
-#import subprocess
+import subprocess
 
 import config
 from codes import *

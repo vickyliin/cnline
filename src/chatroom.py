@@ -149,6 +149,7 @@ class LoginManager():
                     thpack(recv_file, chatroom, filename)()
 
             if new_chatroom:
+                chatroom.root.after(1, self.poll)
                 chatroom.root.mainloop()
                 if chatroom.alive:
                     print('Chatroom to %s is still alive as being closed.'% chatroom.guest)

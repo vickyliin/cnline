@@ -8,6 +8,7 @@ def file_recver(port, chatroom, filename):
     )
     # create a server with port=port to recv file
     process = subprocess.run(['../file_recv', '%s' % port, filename])
+    print(process)
     if process.returncode == 1:
         chatroom.print( 'File %s received.' % filename )
     else:
@@ -25,7 +26,10 @@ def file_sender(addr, chatroom, filename):
     )
     # connect to sender with ip=ip, port=port and then
     # transfer file with filename
-    process = subprocess.run(['../send_recv', ip, port, filename])
+    print('File: %s\n IP: %s' % (filename,ip) )
+    #process = subprocess.run(['../file_send', '0.0.0.0', port, filename])
+    process = subprocess.run(['../file_send', ip, port, filename])
+    print(process)
     if process.returncode == 1:
         chatroom.print( 'File %s sended.' % basename(filename) )
     else:
