@@ -113,7 +113,7 @@ class DBConnection:
         with self.conn:
             self.conn.execute('''INSERT INTO messages(src, dest, time, msg, read)
                                  VALUES(?, ?, ?, ?, ?)''', (
-                                     *users, utcnow_iso(), message, 0
+                                     *users, utcnow_iso(), message, sent
                              ))
     
     def query_messages(self, src, dest, num):
@@ -263,6 +263,7 @@ def transfer_handler(conn, server):
         conn.filedeny("Peer isn't online.")
         raise StopIteration
 
+    print("asking %s to recv file" % dst)
     server.login_connections[dst].filesend(conn.username, filename)
     raise StopIteration
 
@@ -270,6 +271,8 @@ def transfer_accept(conn, server):
     if False:
         yield
     src, port = conn.buf.split('\n')
+    conn.send(REQUEST_FIN, "")
+    raise StopIteration
 
 
 def transfer_deny(conn, server):
@@ -278,6 +281,7 @@ def transfer_deny(conn, server):
     src = conn.buf
     if src in server.login_connections:
         server.login_connections[src].filedeny("Request denied by peer.")
+    conn.send(REQUEST_FIN, "")
     raise StopIteration
 
 REQUEST_HANDLERS = {
