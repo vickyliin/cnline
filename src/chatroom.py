@@ -110,7 +110,8 @@ class LoginManager():
             for msg in server_msg.split(REQUEST_FIN)[:-1]:
                 code, msg = msg[:1], msg[1:]
 
-                guest, msg = msg.decode().split('\n')
+                msg = msg.decode().split('\n')
+                guest, msg = raw_msg[0], raw_msg[1]
 
                 try:
                     chatroom = self.chatrooms[guest]
@@ -131,6 +132,7 @@ class LoginManager():
                     chatroom.print('[%s]: %s' % (guest,msg))
 
                 elif code == HISTORY_REQUEST:
+                    source, msg = raw_msg[1], raw_msg[2]
                     if not self.history:
                         chatroom.print('-'*10+' History '+'-'*10)
                         self.history = True

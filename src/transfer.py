@@ -6,13 +6,12 @@ def file_recver(port, chatroom, filename):
         'Receiving file %s from %s, using port %d' % \
         (filename, chatroom.guest, port)
     )
-    ### TODO replace to call 立人's code
-    sleep(1) 
-    # recv(port)
     # create a server with port=port to recv file
-    # *need little modification to notify error
-    ######
-    chatroom.print( 'File %s received.' % filename )
+    process = subprocess.run(['../file_recv', '%s' % port, filename])
+    if process.returncode == 1:
+        chatroom.print( 'File %s received.' % filename )
+    else:
+        chatroom.print( 'Error occurred during file %s transmission.' % filename )
 
     chatroom.fileports.put(port)
     return
@@ -24,14 +23,13 @@ def file_sender(addr, chatroom, filename):
         'Sending file %s to %s' % \
         (basename(filename), chatroom.guest)
     )
-    ### TODO replace to call 立人's code
-    sleep(1) 
-    # send(ip,port,filename)
     # connect to sender with ip=ip, port=port and then
     # transfer file with filename
-    # *need little modification to notify error
-    ######
-    chatroom.print( 'File %s sended.' % basename(filename) )
+    process = subprocess.run(['../send_recv', ip, port, filename])
+    if process.returncode == 1:
+        chatroom.print( 'File %s sended.' % basename(filename) )
+    else:
+        chatroom.print( 'Error occurred during file %s transmission.' % filename )
     return
 
 def recv_file(chatroom, filename):
