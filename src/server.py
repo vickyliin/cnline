@@ -151,9 +151,9 @@ class DBConnection:
             self.conn.execute('''UPDATE messages SET read = 1 WHERE dest = ?''', (username,))
 
 def register_handler(conn, server):
+    conn.send(NULL, "-----Registration-----\nPlease enter you username, or /cancel to cancel :")
     while True:
         # ask for username
-        conn.send(NULL, "-----Registration-----\nPlease enter you username, or /cancel to cancel :")
         yield
 
         username = conn.buf
