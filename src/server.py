@@ -80,9 +80,6 @@ class Connection:
     def filesend(self, guest, filename):
         self.rsock.send(TRANSFER_REQUEST + (guest + '\n' + filename).encode() + REQUEST_FIN)
 
-    def filedeny(self, msg):
-        self.sock.send(TRANSFER_DENY + msg.encode())
-
     def set_info(self, user_inf):
         self.uid = user_inf[0]
         self.username = user_inf[1]
@@ -260,7 +257,7 @@ def transfer_handler(conn, server):
         yield
     dst, filename = conn.buf.split('\n')
     if not dst in server.login_connections:
-        conn.filedeny("Peer isn't online.")
+        conn.send(TRANSFER_DENY, "Peer isn't online.")
         raise StopIteration
 
     print("asking %s to recv file" % dst)
@@ -270,7 +267,11 @@ def transfer_handler(conn, server):
 def transfer_accept(conn, server):
     if False:
         yield
-    src, port = conn.buf.split('\n')
+    dst, port = conn.buf.split('\n')
+    print("accept, sent response to dst %s" % dst)
+    if dst in server.login_connections:
+        print("sent to ", conn.sock.getpeername()[0] + ":" + port)
+        server.login_connections[dst].send(TRANSFER_ACCEPT, conn.sock.getpeername()[0] + ":" + port)
     conn.send(REQUEST_FIN, "")
     raise StopIteration
 
@@ -278,9 +279,10 @@ def transfer_accept(conn, server):
 def transfer_deny(conn, server):
     if False:
         yield
-    src = conn.buf
-    if src in server.login_connections:
-        server.login_connections[src].filedeny("Request denied by peer.")
+    dst = conn.buf.strip('\n')
+    print("deny, sent response to dst %s" % dst)
+    if dst in server.login_connections:
+        server.login_connections[dst].send(TRANSFER_DENY, "Request denied by peer.")
     conn.send(REQUEST_FIN, "")
     raise StopIteration
 

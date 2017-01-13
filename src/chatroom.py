@@ -99,7 +99,6 @@ class LoginManager():
         # create a new socket to poll talk request from another user
         # a new socket is created to avoid sync receiving problem
         events = self.selector.select(0)
-        print("polling")
         for key, mask in events:
             sock = key.fileobj
             try:
@@ -107,7 +106,6 @@ class LoginManager():
             except OSError:
                 return
 
-            print("recv : " + str(server_msg))
             for msg in server_msg.split(REQUEST_FIN)[:-1]:
                 code, msg = msg[:1], msg[1:]
 
@@ -125,8 +123,6 @@ class LoginManager():
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
                     chatroom.root.after(1, self.poll)
-
-                if code == TRANSFER_REQUEST:
 
                 if not chatroom.alive:
                     new_chatroom = True
