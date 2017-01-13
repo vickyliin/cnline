@@ -129,15 +129,15 @@ class LoginManager():
                 if code == MSG_REQUEST:
                     # print on the corresponding chatroom
                     chatroom.print('[%s]: %s' % (guest,msg))
-                    if self.history:
-                        chatroom.print('-'*10+' History '+'-'*10)
-                        self.history = False
 
                 elif code == HISTORY_REQUEST:
-                    chatroom.print('[%s]: %s' % (guest,msg))
                     if not self.history:
                         chatroom.print('-'*10+' History '+'-'*10)
                         self.history = True
+                    chatroom.print('[%s]: %s' % (guest,msg))
+                elif code == HISTORY_END:
+                    chatroom.print('-'*10+' History '+'-'*10)
+                    self.history = False
 
                 elif code == TRANSFER_REQUEST:
                     # create a thread to recv file

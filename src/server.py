@@ -252,10 +252,12 @@ def rsock_init(conn, server):
 def history_handler(conn, server):
     if False:
         yield
+    conn.send(REQUEST_FIN, '')
     dst, count = conn.buf.split('\n')
     result = server.db.query_messages(conn.username, dst, int(count))
     for row in result:
         conn.histsend(dst, row[4])
+    conn.rsock.send(HISTORY_END)
     raise StopIteration
 
 def transfer_handler(conn, server):
