@@ -20,6 +20,7 @@ class LoginManager():
         self.socket_lock = Lock()
         self.tkroot = tk.Tk()
         self.login = True
+        self.history = False
 
         self.tkroot.title('CNLine / %s' % username)
 
@@ -124,20 +125,19 @@ class LoginManager():
                     new_chatroom = True
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
-                    history = False
 
                 if code == MSG_REQUEST:
                     # print on the corresponding chatroom
                     chatroom.print('[%s]: %s' % (guest,msg))
-                    if history:
+                    if self.history:
                         chatroom.print('-'*10+' History '+'-'*10)
-                        history = False
+                        self.history = False
 
                 elif code == HISTORY_REQUEST:
                     chatroom.print('[%s]: %s' % (guest,msg))
-                    if not history:
+                    if not self.history:
                         chatroom.print('-'*10+' History '+'-'*10)
-                        history = True
+                        self.history = True
 
                 elif code == TRANSFER_REQUEST:
                     # create a thread to recv file
