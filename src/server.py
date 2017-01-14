@@ -66,7 +66,6 @@ class Connection:
         self.sock = sock
         self.task = None
         self.buf = b""
-        self.transfer_list = []
 
     def recv(self):
         self.buf = self.sock.recv(4096)

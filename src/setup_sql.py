@@ -8,7 +8,7 @@ conn.cursor().execute('''CREATE TABLE IF NOT EXISTS users(
                             id  INTEGER PRIMARY KEY,
                             username TEXT UNIQUE NOT NULL,
                             password TEXT NOT NULL,
-                            reg_time TEXT UNIQUE NOT NULL,
+                            reg_time TEXT NOT NULL,
                             last_login TEXT
                         )''')
 
