@@ -18,25 +18,30 @@ class LoginManager():
         self.fileports = queue.Queue(MAX_TRANS_AMT)
         self.chatroom_lock = Lock()
         self.socket_lock = Lock()
-        self.tkroot = tk.Tk()
         self.login = True
         self.history = False
         self.after = None
 
+        self.tkroot = tk.Tk()
         self.tkroot.title('CNLine / %s' % username)
+        win_config_set(self.tkroot)
 
         self.elements = []
-        button_text = ['Online Users', 'New Chatroom', 'Logout']
-        button_commands = [self.ls, self.new, self.logout]
 
         self.msgbox = tk.Text(self.tkroot)
-        self.elements.append(self.msgbox)
+        text_config_set(self.msgbox, h=6)
+
+        #self.elements.append(self.msgbox)
+
+        button_text = ['Online Users', 'New Chatroom', 'Logout']
+        button_commands = [self.ls, self.new, self.logout]
         for text,command in zip(button_text, button_commands):
-            self.elements.append(tk.Button(
+            button = tk.Button(
                 self.tkroot, 
                 text=text,
-                command=command
-            ))
+            )
+            button_config_set(button, command)
+            self.elements.append(button)
 
         for i in range(MAX_TRANS_AMT):
             self.fileports.put(i + config.FILE_PORT)
@@ -55,36 +60,45 @@ class LoginManager():
         server_msg = self.sock.recv(MAX_RECV_LEN)
         self.socket_lock.release()
         return server_msg
-    def print(self, msg, end='\n'):
-        if type(msg) == bytes:
-            msg = msg.decode()
-        self.msgbox.insert('1.0', msg+end)
 
+    def print(self, *args, **kwargs):
+        text_print(self.msgbox, *args, **kwargs)
+        
     def ls(self):
         self.send(LIST_REQUEST)
         server_msg = self.recv()
         code, msg = server_msg[:1], server_msg[1:]
-        self.print('--------------------------------------')
-        self.print(msg)
-        self.print('\n--------------------------------------')
+        self.print('Online Users', tag=('start','history', 'title'))
+        self.print(b'\n'.join(msg.split(b' ')), tag=('end','history'))
+
     def logout(self):
         self.send(LOGOUT_REQUEST)
         self.recv()
         self.close()
         self.login = False
     def new(self):
-        guest = 'username'
         guest = tksd.askstring('New Chatroom', 'To:')
-        if guest:
-            self.build(guest)
+        if guest in self.chatrooms:
+            self.print('The chatroom is still open.')
             chatroom = self.chatrooms[guest]
-            chatroom.root.after(1000, self.poll)
-            chatroom.root.mainloop()
+            chatroom.root.lower(belowThis=None)
+        elif guest == self.username:
+            self.print('Cannot send message to yourself.')
+        elif guest:
+            self.chatroom_lock.acquire()
+            self.build(guest)
+            self.remove(guest)
 
     def start(self):
         self.alive = True
-        for element in self.elements:
-            element.pack()
+        self.msgbox.pack(expand=True, fill='x')
+        for button in self.elements:
+            button.pack(
+                side='left', 
+                expand=True, 
+                fill='x', 
+                ipady=10,
+            )
 
         self.rsock = socket.socket()
         self.rsock.connect(self.server)
@@ -114,16 +128,12 @@ class LoginManager():
                 msg = msg.decode().split('\n')
                 guest = msg[0]
 
-                try:
-                    chatroom = self.chatrooms[guest]
+                self.chatroom_lock.acquire()
+                if guest in self.chatrooms:
                     new_chatroom = False
-                except KeyError:
-                    # build a new chatroom and start
-                    new_chatroom = True
-                    self.build(guest)
                     chatroom = self.chatrooms[guest]
-
-                if not chatroom.alive:
+                else:
+                    # build a new chatroom and start
                     new_chatroom = True
                     self.build(guest)
                     chatroom = self.chatrooms[guest]
@@ -131,17 +141,31 @@ class LoginManager():
                 if code == MSG_REQUEST:
                     msg = msg[1]
                     # print on the corresponding chatroom
-                    chatroom.print('[%s]: %s' % (guest,msg))
+                    chatroom.print(
+                        '[%s]    %s' % (guest,msg),
+                        tag='guest')
 
                 elif code == HISTORY_REQUEST:
                     source, msg = msg[1], msg[2]
                     if not self.history:
-                        chatroom.print('-'*10+' History '+'-'*10)
+                        chatroom.print( ' '*100, 
+                            tag=('start', 'history'))
                         self.history = True
-                    chatroom.print('[%s]: %s' % (source,msg))
+                    
+                    if source == guest:
+                        chatroom.print(
+                            '[%s]    %s' % (source,msg),
+                            tag=('guest', 'history')
+                        )
+                    else:
+                        chatroom.print(
+                            '%s    [%s]' % (msg, source),
+                            tag=('host', 'history')
+                        )
 
                 elif code == HISTORY_END:
-                    chatroom.print('-'*10+' History '+'-'*10)
+                    chatroom.print( ' '*100, 
+                        tag=('end', 'history'))
                     self.history = False
 
                 elif code == TRANSFER_REQUEST:
@@ -149,47 +173,68 @@ class LoginManager():
                     filename = msg[1]
                     thpack(recv_file, chatroom, filename)()
 
-            if new_chatroom:
-                chatroom.after = chatroom.root.after(1, self.poll)
-                chatroom.root.mainloop()
-                if chatroom.alive:
-                    print('Chatroom to %s is still alive as being closed.'% chatroom.guest)
-                else:
-                    print('Chatroom to %s is not alive, corroctly closed.'% chatroom.guest)
+                self.chatroom_lock.release()
+                if new_chatroom:
+                    self.remove(guest)
+                    return
 
-        if self.alive:
-            self.after = self.tkroot.after(1, self.poll)
+        self.after = self.tkroot.after(1, self.poll)
 
 
     def build(self, guest):
-        self.chatroom_lock.acquire()
         new_chatroom = Chatroom(
             fileports = self.fileports,
             root = self.tkroot,
             lock = self.socket_lock,
             host = self.username,
-            guest = guest
+            guest = guest,
+            room_lock = self.chatroom_lock,
         )
         
         self.chatrooms[guest] = new_chatroom
 
+        self.print('New: %s' % guest)
+        self.print(' / '.join(self.chatrooms.keys()), tag='end')
+
         new_chatroom.start(self.sock)
+
+    def remove(self, guest):
+        chatroom = self.chatrooms[guest]
+
+        after = self.tkroot.after(1, self.poll)
+        try:
+            self.chatroom_lock.release()
+        except RuntimeError:
+            pass
+        self.tkroot.wait_window(chatroom.root)
+
+        self.chatroom_lock.acquire()
+        try:
+            del(self.chatrooms[guest])
+            self.print('Close: %s' % guest)
+            self.print(' / '.join(self.chatrooms.keys()), tag='end')
+            self.tkroot.after_cancel(after)
+        except KeyError:
+            self.print('KeyError!')
         self.chatroom_lock.release()
 
+
     def close(self):
+        self.chatroom_lock.acquire()
+        for guest, chatroom in self.chatrooms.items():
+            chatroom.root.destroy()
+        self.chatrooms = {}
+        self.alive = False
+        self.rsock.close()
         self.tkroot.destroy()
         if self.after:
             self.tkroot.after_cancel(self.after)
-        self.chatroom_lock.acquire()
-        for (guest, chatroom) in self.chatrooms.items():
-            if chatroom.alive:
-                chatroom.alive = False
         self.chatroom_lock.release()
-        self.alive = False
-        self.rsock.close()
 
 class Chatroom:
-    def __init__(self, fileports, root, host, guest, lock):
+    def __init__(self, fileports, 
+        root, host, guest, 
+        lock, room_lock):
         # init tk window
         self.host = host
         self.guest = guest
@@ -200,19 +245,36 @@ class Chatroom:
         self.fileports = fileports
         self.lock = lock
         self.after = None
+        self.room_lock = room_lock
 
         # add elements in the window
         self.chatbox = tk.Text(self.root)
+
         self.msgbar = tk.Entry(self.root)
         self.filebtn = tk.Button(self.root, text='File')
         self.histbtn = tk.Button(self.root, text='History')
 
-        self.elements = [ 
-            (self.chatbox, None, None),
-            (self.msgbar, '<Return>', send_msg),
-            (self.filebtn, '<Button-1>', req_file),
-            (self.histbtn, '<Button-1>', req_hist),
-        ]
+        win_config_set(self.root)
+        text_config_set(self.chatbox)
+
+        button_config_set(self.filebtn, thpack(req_file, self))
+        button_config_set(self.histbtn, thpack(req_hist, self))
+
+        self.msgbar.configure(
+            borderwidth = 0,
+            background='#eeeeee',
+            font = ('Times', 14, 'normal'),
+            relief='flat',
+            selectborderwidth=0,
+            textvariable = 1,
+        )
+
+
+
+        self.chatbox.configure(
+            borderwidth = 0,
+            state = 'disabled',
+        )
 
         # TODO arrange the elements
 
@@ -221,12 +283,18 @@ class Chatroom:
         # sock: initiative sending message
         self.sock = sock
 
-        for (tkobj, event, funct) in self.elements:
-            # pack elements in the window to show them in mainloop
-            tkobj.pack()
-            # add event listenners
-            if event:
-                tkobj.bind(event, thpack(funct, self))
+        self.msgbar.bind('<Return>', thpack(send_msg, self))
+
+        self.chatbox.pack(expand=True, fill='x')
+        pad = 6
+        self.msgbar.pack(
+            expand=True, 
+            fill='x', 
+            side='left',
+            ipady=pad,
+        )
+        self.filebtn.pack(side='left', ipady=pad)
+        self.histbtn.pack(side='left', ipady=pad)
 
         # user close the window
         self.root.protocol("WM_DELETE_WINDOW", self.close)
@@ -234,11 +302,10 @@ class Chatroom:
         # open the window
         self.alive = True
         self.root.attributes("-topmost", True)
+        self.msgbar.focus_set()
 
-    def print(self, msg, end='\n'):
-        if type(msg) == bytes:
-            msg = msg.decode()
-        self.chatbox.insert('1.0', msg+end)
+    def print(self, *args, **kwargs):
+        text_print(self.chatbox, *args, **kwargs)
 
     def send(self, code, msg=b''):
         if type(msg) != bytes:
@@ -256,12 +323,12 @@ class Chatroom:
 
     def close(self): 
         # user close the window
-        self.lock.acquire()
+        self.room_lock.acquire()
         self.alive = False 
         self.root.destroy()
-        self.lock.release()
-        if self.after:
-            self.root.after_cancel(self.after)
+        self.room_lock.release()
+        #if self.after:
+            #self.root.after_cancel(self.after)
 
 def send_msg(chatroom):
     # do when press enter in the msgbar:
@@ -279,11 +346,92 @@ def send_msg(chatroom):
 
     code, echo_msg = server_msg[:1], server_msg[1:].decode()
     if code == REQUEST_FIN:
-        chatroom.print('[%s]: %s' % (username,echo_msg))
+        chatroom.print(
+            '%s    [%s]' % (echo_msg, username),
+            tag='host')
         chatroom.msgbar.delete(0, tk.END)
     else:
         chatroom.print('Error, please send your message again.')
     return
+
+def win_config_set(window):
+    window.resizable(width=False, height=False)
+    window.configure(
+        background='#ffffff',
+        relief='flat',
+    )
+
+def button_config_set(button, command):
+    button.configure(
+        borderwidth = 0,
+        background='#666666',
+        foreground='#dddddd',
+        font = ('Times', 12, 'normal'),
+        relief = 'flat',
+        command = command,
+    )
+def text_config_set(element, h=15):
+    element.configure(
+        borderwidth = 0,
+        state = 'disabled',
+        padx = 0,
+        pady = 15,
+        spacing1 = 6,
+        spacing3 = 6,
+        font = ('Times', 12, 'normal'),
+        background = '#ffffff',
+        foreground = '#444444',
+        height = h,
+        width = 45,
+        relief='flat',
+    )
+    element.tag_configure(
+        'start', 
+        spacing1 = element['spacing1'],
+        wrap='none',
+        justify='center',
+    )
+    element.tag_configure(
+        'end',
+        spacing3 = element['spacing1'],
+        wrap='none',
+        justify='center',
+    )
+    element.tag_configure(
+        'history', 
+        foreground='#555555',
+        background='#dddddd',
+    )
+    element.tag_configure(
+        'file', 
+        foreground='#dddddd',
+        background='#444444',
+    )
+    element.tag_configure(
+        'title',
+        font = ('Times', 14, 'bold'),
+    )
+    element.tag_configure(
+        'host', 
+        justify='right',
+    )
+    element.tag_configure(
+        'guest', 
+        justify='left',
+    )
+
+def text_print(element, msg, end='\n', tag=None):
+    element.configure(state='normal')
+    if type(msg) == bytes:
+        msg = msg.decode()
+    if tag:
+        element.insert('end', '  '+msg+'  '+end, tag)
+    else:
+        element.insert('end', '  '+msg+'  '+end)
+    element.see('end')
+    element.configure(state='disabled')
+
+
 
 if __name__ == '__main__':
     # This section is for unit test.
