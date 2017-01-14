@@ -70,6 +70,7 @@ class LoginManager():
         code, msg = server_msg[:1], server_msg[1:]
         self.print('Online Users', tag=('start','history', 'title'))
         self.print(b'\n'.join(msg.split(b' ')), tag=('end','history'))
+        self.print('')
 
     def logout(self):
         self.send(LOGOUT_REQUEST)
@@ -79,7 +80,7 @@ class LoginManager():
     def new(self):
         guest = tksd.askstring('New Chatroom', 'To:')
         if guest in self.chatrooms:
-            self.print('The chatroom is still open.')
+            self.print('The chatroom is already open.')
             chatroom = self.chatrooms[guest]
             chatroom.root.lower(belowThis=None)
         elif guest == self.username:
@@ -107,6 +108,9 @@ class LoginManager():
 
         self.tkroot.protocol('WM_DELETE_WINDOW', self.close)
         self.tkroot.after(0, self.poll)
+        self.print('Welcome, %s!' % self.username, tag=('title','start','end', 'history'))
+        self.print('Press the buttons below, and enjoy your chatting!', tag='history')
+        self.print('')
         self.tkroot.attributes("-topmost", True)
 
         self.tkroot.mainloop()
