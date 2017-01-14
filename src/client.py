@@ -29,7 +29,11 @@ def state_handler(sock, cmd, init_state):
                 return state
 
         if code == b'\x00':
-            sock.send(input('(%s)> '%init_state).encode())
+            new_cmd = input('(%s)> '%cmd)
+            if new_cmd:
+                sock.send(new_cmd.encode())
+            else:
+                sock.send(b' ')
             server_msg = sock.recv(MAX_RECV_LEN)
             code, msg = server_msg[:1], server_msg[1:]
     print('(Server#%d)'%code[0], end=' ')

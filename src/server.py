@@ -209,7 +209,7 @@ def login_handler(conn, server):
     if sha256((password + config.PASSWORD_SALT).encode()).hexdigest() != user_inf[2]:
         conn.send(REQUEST_FIN, 'Password error!')
         raise StopIteration
-    conn.send(LOGIN_SUCCEED, 'Welcome %s, please enter a command.' % username)
+    conn.send(LOGIN_SUCCEED, '')
     print("User %s logged in." % (username,))
     server.db.update_user(username)
     server.login_connections[username] = conn

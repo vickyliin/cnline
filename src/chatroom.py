@@ -219,7 +219,7 @@ class LoginManager():
             self.print(' / '.join(self.chatrooms.keys()), tag='end')
             self.tkroot.after_cancel(after)
         except KeyError:
-            self.print('KeyError!')
+            pass
         self.chatroom_lock.release()
 
 
